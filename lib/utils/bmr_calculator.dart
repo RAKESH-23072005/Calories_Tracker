@@ -15,9 +15,9 @@ enum ActivityLevel {
 
 /// Fitness goals with calorie adjustments
 enum FitnessGoal {
-  weightLoss(-500, 'Weight Loss', 'Lose ~0.5 kg per week'),
+  weightLoss(-350, 'Weight Loss', 'Lose ~0.3-0.4 kg per week'),
   maintenance(0, 'Maintenance', 'Maintain current weight'),
-  weightGain(500, 'Weight Gain', 'Gain ~0.5 kg per week');
+  weightGain(350, 'Weight Gain', 'Gain ~0.3-0.4 kg per week');
 
   final int calorieAdjustment;
   final String label;
