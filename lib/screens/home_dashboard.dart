@@ -5,6 +5,7 @@ import '../utils/bmr_calculator.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
+import '../widgets/bottom_nav_bar.dart';
 import 'food_logging_screen.dart';
 import 'profile_screen.dart';
 
@@ -29,6 +30,7 @@ class HomeDashboard extends StatefulWidget {
 class _HomeDashboardState extends State<HomeDashboard> {
   bool _isLoading = true;
   DailyLogData? _dailyLog;
+  int _currentNavIndex = 0;
 
   @override
   void initState() {
@@ -76,6 +78,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               _buildAppBar(),
@@ -95,7 +98,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                               _buildMacronutrientsCard(),
                               const SizedBox(height: 16),
                               _buildMealBreakdownCard(),
-                              const SizedBox(height: 80),
+                              const SizedBox(height: 100),
                             ],
                           ),
                         ),
@@ -105,12 +108,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _navigateToFoodLogging,
-        icon: const Icon(Icons.add),
-        label: const Text('Log Food'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentNavIndex,
+        onTap: _onNavTap,
+        onAddPressed: _navigateToFoodLogging,
       ),
     );
   }
@@ -373,70 +374,182 @@ class _HomeDashboardState extends State<HomeDashboard> {
   }
 
   Widget _buildMealBreakdownCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 12),
+          child: Row(
+            children: [
+              Icon(Icons.restaurant_menu, color: AppTheme.primaryGreen, size: 22),
+              SizedBox(width: 8),
+              Text('Meal Breakdown', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
+            ],
+          ),
+        ),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.1,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.restaurant_menu, color: AppTheme.primaryGreen, size: 22),
-                SizedBox(width: 8),
-                Text('Meal Breakdown', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
-              ],
+            _buildMealCard(
+              name: 'Breakfast',
+              icon: Icons.wb_sunny_rounded,
+              calories: _dailyLog?.breakfast.totalCalories ?? 0,
+              color: const Color(0xFFFFB74D),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+              ),
             ),
-            const SizedBox(height: 12),
-            _buildMealRow('Breakfast', Icons.wb_sunny, _dailyLog?.breakfast.totalCalories ?? 0),
-            _buildMealRow('Lunch', Icons.wb_cloudy, _dailyLog?.lunch.totalCalories ?? 0),
-            _buildMealRow('Dinner', Icons.nights_stay, _dailyLog?.dinner.totalCalories ?? 0),
-            _buildMealRow('Snacks', Icons.cookie, _dailyLog?.snacks.totalCalories ?? 0),
+            _buildMealCard(
+              name: 'Lunch',
+              icon: Icons.wb_sunny,
+              calories: _dailyLog?.lunch.totalCalories ?? 0,
+              color: const Color(0xFF4FC3F7),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFE1F5FE), Color(0xFFB3E5FC)],
+              ),
+            ),
+            _buildMealCard(
+              name: 'Dinner',
+              icon: Icons.nights_stay_rounded,
+              calories: _dailyLog?.dinner.totalCalories ?? 0,
+              color: const Color(0xFF7E57C2),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFEDE7F6), Color(0xFFD1C4E9)],
+              ),
+            ),
+            _buildMealCard(
+              name: 'Snacks',
+              icon: Icons.cookie_rounded,
+              calories: _dailyLog?.snacks.totalCalories ?? 0,
+              color: const Color(0xFFFF8A65),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFBE9E7), Color(0xFFFFCCBC)],
+              ),
+            ),
           ],
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildMealRow(String name, IconData icon, int calories) {
-    final percentage = widget.targetCalories > 0 ? (calories / widget.targetCalories * 100).clamp(0.0, 100.0) : 0.0;
+  Widget _buildMealCard({
+    required String name,
+    required IconData icon,
+    required int calories,
+    required Color color,
+    required Gradient gradient,
+  }) {
+    final percentage = widget.targetCalories > 0 
+        ? (calories / widget.targetCalories * 100).clamp(0.0, 100.0) 
+        : 0.0;
+    final progress = percentage / 100;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppTheme.primaryGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: AppTheme.primaryGreen, size: 18),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 10),
-          Expanded(
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _navigateToFoodLogging(),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.w500, color: AppTheme.darkGrey, fontSize: 14)),
-                    Text('$calories kcal', style: TextStyle(fontWeight: FontWeight.bold, color: calories > 0 ? AppTheme.primaryGreen : AppTheme.textSecondary, fontSize: 13)),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: color, size: 22),
+                    ),
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 4,
+                            backgroundColor: Colors.white.withValues(alpha: 0.5),
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                            strokeCap: StrokeCap.round,
+                          ),
+                          Text(
+                            '${percentage.toInt()}%',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: percentage / 100,
-                    backgroundColor: AppTheme.mediumGrey,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
-                    minHeight: 5,
+                const Spacer(),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: color.withValues(alpha: 0.8),
                   ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      '$calories',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'kcal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: color.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -470,6 +583,55 @@ class _HomeDashboardState extends State<HomeDashboard> {
       // Refresh UI to show updated name
       setState(() {});
     }
+  }
+
+  void _onNavTap(int index) {
+    setState(() => _currentNavIndex = index);
+    
+    switch (index) {
+      case 0:
+        // Home - already on home, just refresh
+        _loadDailyLog();
+        break;
+      case 1:
+        // Analytics - show coming soon
+        _showComingSoonDialog('Analytics');
+        break;
+      case 2:
+        // Plan - show coming soon
+        _showComingSoonDialog('Meal Plan');
+        break;
+      case 3:
+        // Setting - navigate to profile
+        _navigateToProfile();
+        break;
+    }
+  }
+
+  void _showComingSoonDialog(String feature) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.construction, color: AppTheme.accentOrange),
+            const SizedBox(width: 8),
+            const Text('Coming Soon'),
+          ],
+        ),
+        content: Text(
+          '$feature feature is under development. Stay tuned for updates!',
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   IconData _getGoalIcon() {
