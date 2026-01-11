@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../utils/bmr_calculator.dart';
-import 'food_logging_screen.dart';
+import 'home_dashboard.dart';
 
 class ResultsScreen extends StatefulWidget {
   final BMRResult result;
@@ -57,14 +57,15 @@ class _ResultsScreenState extends State<ResultsScreen>
     super.dispose();
   }
 
-  void _navigateToFoodLogging() {
-    Navigator.push(
+  void _navigateToDashboard() {
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => FoodLoggingScreen(
+        builder: (context) => HomeDashboard(
           targetCalories: widget.result.targetCalories.round(),
           bmr: widget.result.bmr.round(),
           goal: widget.result.goal,
+          maintenanceCalories: widget.result.maintenanceCalories,
         ),
       ),
     );
@@ -421,9 +422,9 @@ class _ResultsScreenState extends State<ResultsScreen>
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _navigateToFoodLogging,
-        icon: const Icon(Icons.restaurant_menu),
-        label: const Text('Start Food Logging'),
+        onPressed: _navigateToDashboard,
+        icon: const Icon(Icons.dashboard),
+        label: const Text('Go to Dashboard'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: AppTheme.primaryGreen,

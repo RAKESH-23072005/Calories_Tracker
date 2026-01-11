@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../utils/bmr_calculator.dart';
+import '../services/auth_service.dart';
+import '../services/user_profile_service.dart';
+import '../services/firestore_service.dart';
 import 'results_screen.dart';
 
 class UserDetailsScreen extends StatefulWidget {
@@ -29,8 +32,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     super.dispose();
   }
 
-  void _calculateAndNavigate() {
+  bool _isSaving = false;
+
+  Future<void> _calculateAndNavigate() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
       final result = BMRCalculator.calculate(
         weightKg: double.parse(_weightController.text),
         heightCm: double.parse(_heightController.text),
@@ -40,7 +47,51 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         goal: _selectedGoal,
       );
 
-      Navigator.push(
+      // Save user profile to Firestore
+      final firestoreProfile = FirestoreUserProfile(
+        name: AuthService.currentUser?.email?.split('@')[0] ?? 'User',
+        age: int.parse(_ageController.text),
+        gender: _selectedGender,
+        height: double.parse(_heightController.text),
+        weight: double.parse(_weightController.text),
+        activityLevel: _selectedActivityLevel,
+        fitnessGoal: _selectedGoal,
+        targetCalories: result.targetCalories.round(),
+        bmr: result.bmr.round(),
+        maintenanceCalories: result.maintenanceCalories,
+      );
+      
+      final success = await FirestoreService.saveUserProfile(firestoreProfile);
+
+      // Also save locally for quick access
+      final localProfile = UserProfile(
+        name: AuthService.currentUser?.email?.split('@')[0] ?? 'User',
+        age: int.parse(_ageController.text),
+        gender: _selectedGender,
+        height: double.parse(_heightController.text),
+        weight: double.parse(_weightController.text),
+        activityLevel: _selectedActivityLevel,
+        fitnessGoal: _selectedGoal,
+        targetCalories: result.targetCalories.round(),
+        bmr: result.bmr.round(),
+        maintenanceCalories: result.maintenanceCalories,
+      );
+      await UserProfileService.saveProfile(localProfile);
+
+      if (!mounted) return;
+
+      setState(() => _isSaving = false);
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile saved locally. Cloud sync failed.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => ResultsScreen(
@@ -114,31 +165,82 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           ),
         ),
         child: SafeArea(
-          child: GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeaderSection(),
-                    const SizedBox(height: 24),
-                    _buildPersonalInfoCard(),
-                    const SizedBox(height: 16),
-                    _buildActivityCard(),
-                    const SizedBox(height: 16),
-                    _buildGoalCard(),
-                    const SizedBox(height: 24),
-                    _buildCalculateButton(),
-                    const SizedBox(height: 32),
-                  ],
+          child: Column(
+            children: [
+              // Logout button
+              Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8, top: 8),
+                  child: IconButton(
+                    onPressed: () => _showLogoutDialog(context),
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    tooltip: 'Logout',
+                  ),
                 ),
               ),
-            ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => FocusScope.of(context).unfocus(),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildHeaderSection(),
+                          const SizedBox(height: 24),
+                          _buildPersonalInfoCard(),
+                          const SizedBox(height: 16),
+                          _buildActivityCard(),
+                          const SizedBox(height: 16),
+                          _buildGoalCard(),
+                          const SizedBox(height: 24),
+                          _buildCalculateButton(),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: AppTheme.accentOrange),
+            SizedBox(width: 8),
+            Text('Logout'),
+          ],
+        ),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await AuthService.logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentOrange,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
       ),
     );
   }
