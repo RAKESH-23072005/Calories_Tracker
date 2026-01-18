@@ -18,6 +18,11 @@ class AppTheme {
   static const Color accentRed = Color(0xFFE53935);
   static const Color accentBlue = Color(0xFF2196F3);
 
+  // Health-related Colors
+  static const Color softYellow = Color(0xFFFFF9C4);
+  static const Color warningYellow = Color(0xFFFFD54F);
+  static const Color healthGreen = Color(0xFF66BB6A);
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,

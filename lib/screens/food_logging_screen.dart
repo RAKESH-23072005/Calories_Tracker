@@ -5,6 +5,8 @@ import '../utils/bmr_calculator.dart';
 import '../models/food_model.dart';
 import '../services/food_service.dart';
 import '../services/daily_log_service.dart';
+import '../services/firestore_service.dart';
+import '../services/health_alert_service.dart';
 
 class FoodLoggingScreen extends StatefulWidget {
   final int targetCalories;
@@ -27,6 +29,7 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
   bool _isLoading = true;
   DailyLogData? _dailyLog;
   List<LoggedFood> _localFoods = [];
+  List<HealthCondition> _healthConditions = [];
 
   final List<String> _mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 
@@ -40,6 +43,11 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
   Future<void> _loadData() async {
     await FoodService.loadFoods();
     _dailyLog = await DailyLogService.getTodaysLog();
+    
+    // Load user health conditions
+    final profile = await FirestoreService.getUserProfile();
+    _healthConditions = profile?.healthConditions ?? [HealthCondition.none];
+    
     _rebuildLocalFoods();
     setState(() => _isLoading = false);
   }
@@ -511,6 +519,7 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
       builder: (context) => FoodSelectionSheet(
         mealType: mealType,
         onFoodSelected: _addLoggedFood,
+        healthConditions: _healthConditions,
       ),
     );
   }
@@ -535,11 +544,13 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
 class FoodSelectionSheet extends StatefulWidget {
   final String mealType;
   final Function(LoggedFood) onFoodSelected;
+  final List<HealthCondition> healthConditions;
 
   const FoodSelectionSheet({
     super.key,
     required this.mealType,
     required this.onFoodSelected,
+    this.healthConditions = const [],
   });
 
   @override
@@ -887,25 +898,173 @@ class _FoodSelectionSheetState extends State<FoodSelectionSheet> {
             ),
             ElevatedButton(
               onPressed: () {
-                widget.onFoodSelected(LoggedFood(
+                final loggedFood = LoggedFood(
                   food: food,
                   quantity: quantity,
                   mealType: widget.mealType,
-                ));
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Close sheet
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Added ${food.name} to ${widget.mealType}'),
-                    backgroundColor: AppTheme.primaryGreen,
-                    behavior: SnackBarBehavior.floating,
-                  ),
                 );
+                
+                // Check for health alerts based on quantity
+                final alerts = HealthAlertService.checkFoodWithQuantity(
+                  food,
+                  quantity,
+                  widget.healthConditions,
+                );
+                
+                Navigator.pop(context); // Close quantity dialog
+                
+                if (alerts.isNotEmpty) {
+                  _showHealthAlertDialog(loggedFood, alerts);
+                } else {
+                  _addFoodAndClose(loggedFood);
+                }
               },
               child: const Text('Add'),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showHealthAlertDialog(LoggedFood loggedFood, List<HealthAlert> alerts) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.softYellow,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.lightbulb_outline,
+                color: AppTheme.warningYellow,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Health Awareness',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.softYellow.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'About ${loggedFood.food.name}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...alerts.map((alert) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            alert.condition.icon,
+                            size: 16,
+                            color: AppTheme.warningYellow,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              alert.message,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                height: 1.4,
+                                color: AppTheme.darkGrey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.softGrey,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        HealthAlertService.shortDisclaimer,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _addFoodAndClose(loggedFood);
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Got it, Add Food'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.healthGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addFoodAndClose(LoggedFood loggedFood) {
+    widget.onFoodSelected(loggedFood);
+    Navigator.pop(context); // Close sheet
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added ${loggedFood.food.name} to ${widget.mealType}'),
+        backgroundColor: AppTheme.primaryGreen,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

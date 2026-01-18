@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
+import '../services/health_alert_service.dart';
 import '../utils/bmr_calculator.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -90,6 +91,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (!_isEditing) _buildCalorieInfoCard(),
                       if (!_isEditing) const SizedBox(height: 16),
                       if (!_isEditing) _buildGoalCard(),
+                      if (!_isEditing) const SizedBox(height: 16),
+                      if (!_isEditing) _buildHealthConditionsCard(),
                       if (!_isEditing) const SizedBox(height: 24),
                       if (!_isEditing) _buildActionsCard(),
                       const SizedBox(height: 32),
@@ -415,6 +418,256 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildHealthConditionsCard() {
+    final conditions = _profile.healthConditions;
+    final hasConditions = conditions.isNotEmpty && 
+        !(conditions.length == 1 && conditions.contains(HealthCondition.none));
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.healthGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.health_and_safety, color: AppTheme.healthGreen, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Health Profile',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _showEditHealthConditionsDialog,
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Edit'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primaryGreen,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (hasConditions)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: conditions
+                    .where((c) => c != HealthCondition.none)
+                    .map((condition) => _buildConditionChip(condition))
+                    .toList(),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.softGrey,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'No specific health conditions',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.softYellow,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: AppTheme.warningYellow.withValues(alpha: 0.8)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      HealthAlertService.shortDisclaimer,
+                      style: TextStyle(fontSize: 11, color: AppTheme.darkGrey.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConditionChip(HealthCondition condition) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.healthGreen.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.healthGreen.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(condition.icon, size: 16, color: AppTheme.healthGreen),
+          const SizedBox(width: 6),
+          Text(
+            condition.label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.darkGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditHealthConditionsDialog() {
+    final selectedConditions = Set<HealthCondition>.from(_profile.healthConditions);
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void toggleCondition(HealthCondition condition) {
+            setDialogState(() {
+              if (condition == HealthCondition.none) {
+                selectedConditions.clear();
+                selectedConditions.add(HealthCondition.none);
+              } else {
+                selectedConditions.remove(HealthCondition.none);
+                if (selectedConditions.contains(condition)) {
+                  selectedConditions.remove(condition);
+                } else {
+                  selectedConditions.add(condition);
+                }
+              }
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.health_and_safety, color: AppTheme.healthGreen),
+                SizedBox(width: 8),
+                Text('Health Conditions'),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select any that apply:',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: HealthCondition.values
+                          .where((c) => c != HealthCondition.none)
+                          .map((condition) {
+                        final isSelected = selectedConditions.contains(condition);
+                        return FilterChip(
+                          selected: isSelected,
+                          label: Text(condition.label),
+                          avatar: Icon(condition.icon, size: 16),
+                          selectedColor: AppTheme.healthGreen.withValues(alpha: 0.2),
+                          checkmarkColor: AppTheme.healthGreen,
+                          onSelected: (_) => toggleCondition(condition),
+                        );
+                      }).toList(),
+                    ),
+                    const Divider(height: 24),
+                    FilterChip(
+                      selected: selectedConditions.contains(HealthCondition.none),
+                      label: const Text('None of the above'),
+                      avatar: const Icon(Icons.check_circle_outline, size: 16),
+                      selectedColor: AppTheme.primaryGreen.withValues(alpha: 0.2),
+                      checkmarkColor: AppTheme.primaryGreen,
+                      onSelected: (_) => toggleCondition(HealthCondition.none),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _updateHealthConditions(selectedConditions.toList());
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _updateHealthConditions(List<HealthCondition> conditions) async {
+    if (conditions.isEmpty) {
+      conditions = [HealthCondition.none];
+    }
+
+    final success = await FirestoreService.updateUserProfile({
+      'healthConditions': conditions.map((c) => c.index).toList(),
+    });
+
+    if (mounted) {
+      if (success) {
+        // Refresh profile
+        final updatedProfile = await FirestoreService.getUserProfile();
+        if (updatedProfile != null && mounted) {
+          setState(() => _profile = updatedProfile);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Health profile updated'),
+            backgroundColor: AppTheme.primaryGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update health profile'),
+            backgroundColor: AppTheme.accentRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildActionsCard() {

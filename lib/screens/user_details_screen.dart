@@ -5,6 +5,7 @@ import '../utils/bmr_calculator.dart';
 import '../services/auth_service.dart';
 import '../services/user_profile_service.dart';
 import '../services/firestore_service.dart';
+import 'health_condition_screen.dart';
 import 'results_screen.dart';
 
 class UserDetailsScreen extends StatefulWidget {
@@ -24,6 +25,9 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   ActivityLevel _selectedActivityLevel = ActivityLevel.moderatelyActive;
   FitnessGoal _selectedGoal = FitnessGoal.maintenance;
 
+  // Store BMR result for use after health condition selection
+  BMRResult? _bmrResult;
+
   @override
   void dispose() {
     _ageController.dispose();
@@ -38,7 +42,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
 
-      final result = BMRCalculator.calculate(
+      _bmrResult = BMRCalculator.calculate(
         weightKg: double.parse(_weightController.text),
         heightCm: double.parse(_heightController.text),
         age: int.parse(_ageController.text),
@@ -47,63 +51,87 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         goal: _selectedGoal,
       );
 
-      // Save user profile to Firestore
-      final firestoreProfile = FirestoreUserProfile(
-        name: AuthService.currentUser?.email?.split('@')[0] ?? 'User',
-        age: int.parse(_ageController.text),
-        gender: _selectedGender,
-        height: double.parse(_heightController.text),
-        weight: double.parse(_weightController.text),
-        activityLevel: _selectedActivityLevel,
-        fitnessGoal: _selectedGoal,
-        targetCalories: result.targetCalories.round(),
-        bmr: result.bmr.round(),
-        maintenanceCalories: result.maintenanceCalories,
-      );
-      
-      final success = await FirestoreService.saveUserProfile(firestoreProfile);
-
-      // Also save locally for quick access
-      final localProfile = UserProfile(
-        name: AuthService.currentUser?.email?.split('@')[0] ?? 'User',
-        age: int.parse(_ageController.text),
-        gender: _selectedGender,
-        height: double.parse(_heightController.text),
-        weight: double.parse(_weightController.text),
-        activityLevel: _selectedActivityLevel,
-        fitnessGoal: _selectedGoal,
-        targetCalories: result.targetCalories.round(),
-        bmr: result.bmr.round(),
-        maintenanceCalories: result.maintenanceCalories,
-      );
-      await UserProfileService.saveProfile(localProfile);
+      setState(() => _isSaving = false);
 
       if (!mounted) return;
 
-      setState(() => _isSaving = false);
-
-      if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile saved locally. Cloud sync failed.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-
-      Navigator.pushReplacement(
+      // Navigate to health condition selection screen
+      Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ResultsScreen(
-            result: result,
-            gender: _selectedGender,
-            age: int.parse(_ageController.text),
-            height: double.parse(_heightController.text),
-            weight: double.parse(_weightController.text),
+          builder: (context) => HealthConditionScreen(
+            onComplete: (conditions) => _saveProfileAndContinue(conditions),
+            onSkip: () => _saveProfileAndContinue([HealthCondition.none]),
           ),
         ),
       );
     }
+  }
+
+  Future<void> _saveProfileAndContinue(List<HealthCondition> conditions) async {
+    if (_bmrResult == null) return;
+
+    setState(() => _isSaving = true);
+
+    // Save user profile to Firestore with health conditions
+    final firestoreProfile = FirestoreUserProfile(
+      name: AuthService.currentUser?.email?.split('@')[0] ?? 'User',
+      age: int.parse(_ageController.text),
+      gender: _selectedGender,
+      height: double.parse(_heightController.text),
+      weight: double.parse(_weightController.text),
+      activityLevel: _selectedActivityLevel,
+      fitnessGoal: _selectedGoal,
+      targetCalories: _bmrResult!.targetCalories.round(),
+      bmr: _bmrResult!.bmr.round(),
+      maintenanceCalories: _bmrResult!.maintenanceCalories,
+      healthConditions: conditions,
+    );
+    
+    final success = await FirestoreService.saveUserProfile(firestoreProfile);
+
+    // Also save locally for quick access
+    final localProfile = UserProfile(
+      name: AuthService.currentUser?.email?.split('@')[0] ?? 'User',
+      age: int.parse(_ageController.text),
+      gender: _selectedGender,
+      height: double.parse(_heightController.text),
+      weight: double.parse(_weightController.text),
+      activityLevel: _selectedActivityLevel,
+      fitnessGoal: _selectedGoal,
+      targetCalories: _bmrResult!.targetCalories.round(),
+      bmr: _bmrResult!.bmr.round(),
+      maintenanceCalories: _bmrResult!.maintenanceCalories,
+    );
+    await UserProfileService.saveProfile(localProfile);
+
+    if (!mounted) return;
+
+    setState(() => _isSaving = false);
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile saved locally. Cloud sync failed.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    // Pop back to user details, then replace with results
+    Navigator.pop(context);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultsScreen(
+          result: _bmrResult!,
+          gender: _selectedGender,
+          age: int.parse(_ageController.text),
+          height: double.parse(_heightController.text),
+          weight: double.parse(_weightController.text),
+        ),
+      ),
+    );
   }
 
   String? _validateAge(String? value) {
@@ -599,9 +627,15 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
   Widget _buildCalculateButton() {
     return ElevatedButton.icon(
-      onPressed: _calculateAndNavigate,
-      icon: const Icon(Icons.calculate),
-      label: const Text('Calculate My Calories'),
+      onPressed: _isSaving ? null : _calculateAndNavigate,
+      icon: _isSaving 
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            )
+          : const Icon(Icons.calculate),
+      label: Text(_isSaving ? 'Calculating...' : 'Calculate My Calories'),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 18),
         elevation: 4,
