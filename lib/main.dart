@@ -6,10 +6,18 @@ import 'screens/user_details_screen.dart';
 import 'screens/home_dashboard.dart';
 import 'screens/auth/login_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+
+
+
+
+
+  await NotificationService.initialize();
   runApp(const CaloriesTrackerApp());
 }
 
@@ -97,6 +105,17 @@ class _ProfileCheckerState extends State<ProfileChecker> {
     }
   }
 
+  Future<void> _scheduleNotifications() async {
+    // Request notification permissions
+    await NotificationService.requestPermissions();
+    
+    // Schedule daily meal reminders
+    await NotificationService.scheduleDailyReminders();
+    
+    // Schedule inactivity reminder
+    await NotificationService.scheduleInactivityReminder();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -132,6 +151,8 @@ class _ProfileCheckerState extends State<ProfileChecker> {
 
     // User has profile - go to dashboard
     if (_hasProfile && _profile != null) {
+      // Schedule notifications after profile is loaded
+      _scheduleNotifications();
       return HomeDashboard(
         targetCalories: _profile!.targetCalories,
         bmr: _profile!.bmr,

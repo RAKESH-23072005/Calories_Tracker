@@ -7,6 +7,7 @@ import '../services/food_service.dart';
 import '../services/daily_log_service.dart';
 import '../services/firestore_service.dart';
 import '../services/health_alert_service.dart';
+import '../services/notification_service.dart';
 
 class FoodLoggingScreen extends StatefulWidget {
   final int targetCalories;
@@ -105,6 +106,18 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
     _dailyLog = await DailyLogService.getTodaysLog();
     _rebuildLocalFoods();
     setState(() {});
+    
+    // Cancel inactivity reminder since user logged food
+    await NotificationService.cancelInactivityReminder();
+    
+    // Check if approaching calorie limit (> 90% of target)
+    if (_dailySummary.totalCalories > widget.targetCalories * 0.9 &&
+        _dailySummary.totalCalories <= widget.targetCalories) {
+      await NotificationService.showCalorieLimitAlert(
+        _dailySummary.totalCalories,
+        widget.targetCalories,
+      );
+    }
   }
 
   Future<void> _removeLoggedFood(LoggedFood food) async {
@@ -1045,6 +1058,15 @@ class _FoodSelectionSheetState extends State<FoodSelectionSheet> {
             onPressed: () {
               Navigator.pop(context);
               _addFoodAndClose(loggedFood);
+              // Send health awareness notification
+              if (alerts.isNotEmpty) {
+                final firstAlert = alerts.first;
+                NotificationService.showHealthAlert(
+                  foodName: loggedFood.food.name,
+                  concern: firstAlert.nutrientConcern,
+                  conditionName: firstAlert.condition.label,
+                );
+              }
             },
             icon: const Icon(Icons.check, size: 18),
             label: const Text('Got it, Add Food'),

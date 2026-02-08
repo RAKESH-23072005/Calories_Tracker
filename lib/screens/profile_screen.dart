@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
 import '../services/health_alert_service.dart';
+import '../services/notification_service.dart';
 import '../utils/bmr_calculator.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late FirestoreUserProfile _profile;
   bool _isEditing = false;
   bool _isSaving = false;
+  NotificationSettings _notificationSettings = NotificationService.settings;
 
   // Edit controllers
   late TextEditingController _nameController;
@@ -93,6 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (!_isEditing) _buildGoalCard(),
                       if (!_isEditing) const SizedBox(height: 16),
                       if (!_isEditing) _buildHealthConditionsCard(),
+                      if (!_isEditing) const SizedBox(height: 16),
+                      if (!_isEditing) _buildNotificationSettingsCard(),
                       if (!_isEditing) const SizedBox(height: 24),
                       if (!_isEditing) _buildActionsCard(),
                       const SizedBox(height: 32),
@@ -514,6 +518,150 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildNotificationSettingsCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.notifications_active, color: AppTheme.accentBlue, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Notifications',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildNotificationToggle(
+              icon: Icons.wb_sunny,
+              title: 'Meal Reminders',
+              subtitle: 'Daily reminders at 8 AM, 1 PM, 8 PM',
+              value: _notificationSettings.dailyReminders,
+              onChanged: (value) => _updateNotificationSetting(dailyReminders: value),
+            ),
+            const Divider(height: 20),
+            _buildNotificationToggle(
+              icon: Icons.trending_up,
+              title: 'Calorie Limit Alerts',
+              subtitle: 'Alert when approaching daily target',
+              value: _notificationSettings.calorieLimitAlerts,
+              onChanged: (value) => _updateNotificationSetting(calorieLimitAlerts: value),
+            ),
+            const Divider(height: 20),
+            _buildNotificationToggle(
+              icon: Icons.health_and_safety,
+              title: 'Health Awareness',
+              subtitle: 'Alerts based on your health conditions',
+              value: _notificationSettings.healthAlerts,
+              onChanged: (value) => _updateNotificationSetting(healthAlerts: value),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.softGrey,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: AppTheme.textSecondary.withValues(alpha: 0.8)),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Notifications are for reminders and awareness only, not medical advice.',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationToggle({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: value ? AppTheme.accentBlue : AppTheme.textSecondary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: value ? AppTheme.darkGrey : AppTheme.textSecondary,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppTheme.accentBlue,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _updateNotificationSetting({
+    bool? dailyReminders,
+    bool? calorieLimitAlerts,
+    bool? healthAlerts,
+  }) async {
+    final newSettings = _notificationSettings.copyWith(
+      dailyReminders: dailyReminders,
+      calorieLimitAlerts: calorieLimitAlerts,
+      healthAlerts: healthAlerts,
+    );
+    
+    setState(() => _notificationSettings = newSettings);
+    await NotificationService.updateSettings(newSettings);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Notification settings updated'),
+          backgroundColor: AppTheme.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   Widget _buildConditionChip(HealthCondition condition) {
