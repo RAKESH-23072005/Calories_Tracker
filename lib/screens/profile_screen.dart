@@ -596,7 +596,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         return FilterChip(
                           selected: isSelected,
                           label: Text(condition.label),
-                          avatar: Icon(condition.icon, size: 16),
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppTheme.healthGreen : AppTheme.darkGrey,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          // avatar: Icon(
+                          //   condition.icon, 
+                          //   size: 16,
+                          //   color: isSelected ? AppTheme.healthGreen : AppTheme.textSecondary,
+                          // ),
                           selectedColor: AppTheme.healthGreen.withValues(alpha: 0.2),
                           checkmarkColor: AppTheme.healthGreen,
                           onSelected: (_) => toggleCondition(condition),
@@ -607,7 +615,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     FilterChip(
                       selected: selectedConditions.contains(HealthCondition.none),
                       label: const Text('None of the above'),
-                      avatar: const Icon(Icons.check_circle_outline, size: 16),
+                      labelStyle: TextStyle(
+                        color: selectedConditions.contains(HealthCondition.none) 
+                            ? AppTheme.primaryGreen 
+                            : AppTheme.darkGrey,
+                        fontWeight: selectedConditions.contains(HealthCondition.none) 
+                            ? FontWeight.w600 
+                            : FontWeight.normal,
+                      ),
+                      avatar: Icon(
+                        Icons.check_circle_outline, 
+                        size: 16,
+                        color: selectedConditions.contains(HealthCondition.none) 
+                            ? AppTheme.primaryGreen 
+                            : AppTheme.textSecondary,
+                      ),
                       selectedColor: AppTheme.primaryGreen.withValues(alpha: 0.2),
                       checkmarkColor: AppTheme.primaryGreen,
                       onSelected: (_) => toggleCondition(HealthCondition.none),
