@@ -6,10 +6,16 @@ import 'screens/user_details_screen.dart';
 import 'screens/home_dashboard.dart';
 import 'screens/auth/login_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Initialize notifications & schedule daily meal reminders (once)
+  await NotificationService.init();
+  await NotificationService.scheduleDailyNotifications();
+
   runApp(const CaloriesTrackerApp());
 }
 

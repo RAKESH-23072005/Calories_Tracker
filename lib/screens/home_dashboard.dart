@@ -6,6 +6,7 @@ import '../utils/macro_calculator.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'food_logging_screen.dart';
 import 'profile_screen.dart';
@@ -48,6 +49,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
           _dailyLog = log;
           _isLoading = false;
         });
+
+        // Schedule 9 PM calorie deficit reminder if under target
+        NotificationService.scheduleCalorieDeficitReminder(
+          consumedCalories: log.totalCalories,
+          targetCalories: widget.targetCalories,
+        );
       }
     } catch (e) {
       if (mounted) {
