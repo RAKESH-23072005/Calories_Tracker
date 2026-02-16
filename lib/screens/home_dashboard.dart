@@ -10,6 +10,7 @@ import '../services/notification_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'food_logging_screen.dart';
 import 'profile_screen.dart';
+import 'weekly_analytics_screen.dart';
 
 class HomeDashboard extends StatefulWidget {
   final int targetCalories;
@@ -605,7 +606,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => _navigateToFoodLogging(),
+          onTap: () => _navigateToFoodLogging(mealType: name),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -686,7 +687,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
-  void _navigateToFoodLogging() async {
+  void _navigateToFoodLogging({String mealType = 'Breakfast'}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -694,6 +695,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           targetCalories: widget.targetCalories,
           bmr: widget.bmr,
           goal: widget.goal,
+          initialMealType: mealType,
         ),
       ),
     );
@@ -726,8 +728,18 @@ class _HomeDashboardState extends State<HomeDashboard> {
         _loadDailyLog();
         break;
       case 1:
-        // Analytics - show coming soon
-        _showComingSoonDialog('Analytics');
+        // Analytics
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WeeklyAnalyticsScreen(
+              targetCalories: widget.targetCalories,
+              bmr: widget.bmr,
+              goal: widget.goal,
+              maintenanceCalories: widget.maintenanceCalories,
+            ),
+          ),
+        );
         break;
       case 2:
         // Plan - show coming soon

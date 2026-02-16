@@ -6,6 +6,9 @@ import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
 import '../services/health_alert_service.dart';
 import '../utils/bmr_calculator.dart';
+import '../widgets/bottom_nav_bar.dart';
+import 'food_logging_screen.dart';
+import 'weekly_analytics_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final FirestoreUserProfile profile;
@@ -76,6 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               _buildAppBar(),
@@ -103,6 +107,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 3, // Settings tab
+        onTap: _onNavTap,
+        onAddPressed: _navigateToFoodLogging,
+      ),
+    );
+  }
+
+  void _onNavTap(int index) {
+    switch (index) {
+      case 0:
+        // Home — go back to dashboard
+        Navigator.pop(context);
+        break;
+      case 1:
+        // Analytics
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WeeklyAnalyticsScreen(
+              targetCalories: _profile.targetCalories,
+              bmr: _profile.bmr,
+              goal: _profile.fitnessGoal,
+              maintenanceCalories: _profile.maintenanceCalories,
+            ),
+          ),
+        );
+        break;
+      case 2:
+        // Plan — coming soon
+        _showComingSoonDialog('Meal Plan');
+        break;
+      case 3:
+        // Already on Settings — do nothing
+        break;
+    }
+  }
+
+  void _navigateToFoodLogging() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FoodLoggingScreen(
+          targetCalories: _profile.targetCalories,
+          bmr: _profile.bmr,
+          goal: _profile.fitnessGoal,
+        ),
+      ),
+    );
+  }
+
+  void _showComingSoonDialog(String feature) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.construction, color: AppTheme.accentOrange),
+            const SizedBox(width: 8),
+            const Text('Coming Soon'),
+          ],
+        ),
+        content: Text(
+          '$feature feature is under development. Stay tuned for updates!',
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
