@@ -5,6 +5,7 @@ import '../utils/bmr_calculator.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'food_logging_screen.dart';
 import 'profile_screen.dart';
@@ -47,6 +48,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
           _dailyLog = log;
           _isLoading = false;
         });
+
+        // Check calorie limit and show alert if > 90% of target
+        final consumed = log?.totalCalories ?? 0;
+        if (consumed > widget.targetCalories * 0.9 && widget.targetCalories > 0) {
+          NotificationService.showCalorieLimitAlert(consumed, widget.targetCalories);
+        }
       }
     } catch (e) {
       if (mounted) {

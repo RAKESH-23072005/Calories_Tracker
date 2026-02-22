@@ -13,8 +13,15 @@ class NotificationSettings {
   final bool healthAlerts;
   final bool inactivityReminders;
   final int breakfastHour;
+  final int breakfastMinute;
+  final int morningSnackHour;
+  final int morningSnackMinute;
   final int lunchHour;
+  final int lunchMinute;
+  final int eveningSnackHour;
+  final int eveningSnackMinute;
   final int dinnerHour;
+  final int dinnerMinute;
 
   const NotificationSettings({
     this.dailyReminders = true,
@@ -22,8 +29,15 @@ class NotificationSettings {
     this.healthAlerts = true,
     this.inactivityReminders = true,
     this.breakfastHour = 8,
+    this.breakfastMinute = 0,
+    this.morningSnackHour = 10,
+    this.morningSnackMinute = 30,
     this.lunchHour = 13,
+    this.lunchMinute = 0,
+    this.eveningSnackHour = 17,
+    this.eveningSnackMinute = 0,
     this.dinnerHour = 20,
+    this.dinnerMinute = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -32,8 +46,15 @@ class NotificationSettings {
     'healthAlerts': healthAlerts,
     'inactivityReminders': inactivityReminders,
     'breakfastHour': breakfastHour,
+    'breakfastMinute': breakfastMinute,
+    'morningSnackHour': morningSnackHour,
+    'morningSnackMinute': morningSnackMinute,
     'lunchHour': lunchHour,
+    'lunchMinute': lunchMinute,
+    'eveningSnackHour': eveningSnackHour,
+    'eveningSnackMinute': eveningSnackMinute,
     'dinnerHour': dinnerHour,
+    'dinnerMinute': dinnerMinute,
   };
 
   factory NotificationSettings.fromJson(Map<String, dynamic>? json) {
@@ -44,8 +65,15 @@ class NotificationSettings {
       healthAlerts: json['healthAlerts'] ?? true,
       inactivityReminders: json['inactivityReminders'] ?? true,
       breakfastHour: json['breakfastHour'] ?? 8,
+      breakfastMinute: json['breakfastMinute'] ?? 0,
+      morningSnackHour: json['morningSnackHour'] ?? 10,
+      morningSnackMinute: json['morningSnackMinute'] ?? 30,
       lunchHour: json['lunchHour'] ?? 13,
+      lunchMinute: json['lunchMinute'] ?? 0,
+      eveningSnackHour: json['eveningSnackHour'] ?? 17,
+      eveningSnackMinute: json['eveningSnackMinute'] ?? 0,
       dinnerHour: json['dinnerHour'] ?? 20,
+      dinnerMinute: json['dinnerMinute'] ?? 0,
     );
   }
 
@@ -55,8 +83,15 @@ class NotificationSettings {
     bool? healthAlerts,
     bool? inactivityReminders,
     int? breakfastHour,
+    int? breakfastMinute,
+    int? morningSnackHour,
+    int? morningSnackMinute,
     int? lunchHour,
+    int? lunchMinute,
+    int? eveningSnackHour,
+    int? eveningSnackMinute,
     int? dinnerHour,
+    int? dinnerMinute,
   }) {
     return NotificationSettings(
       dailyReminders: dailyReminders ?? this.dailyReminders,
@@ -64,8 +99,15 @@ class NotificationSettings {
       healthAlerts: healthAlerts ?? this.healthAlerts,
       inactivityReminders: inactivityReminders ?? this.inactivityReminders,
       breakfastHour: breakfastHour ?? this.breakfastHour,
+      breakfastMinute: breakfastMinute ?? this.breakfastMinute,
+      morningSnackHour: morningSnackHour ?? this.morningSnackHour,
+      morningSnackMinute: morningSnackMinute ?? this.morningSnackMinute,
       lunchHour: lunchHour ?? this.lunchHour,
+      lunchMinute: lunchMinute ?? this.lunchMinute,
+      eveningSnackHour: eveningSnackHour ?? this.eveningSnackHour,
+      eveningSnackMinute: eveningSnackMinute ?? this.eveningSnackMinute,
       dinnerHour: dinnerHour ?? this.dinnerHour,
+      dinnerMinute: dinnerMinute ?? this.dinnerMinute,
     );
   }
 }
@@ -78,12 +120,21 @@ class NotificationService {
   static NotificationSettings _settings = const NotificationSettings();
   static bool _isInitialized = false;
 
+  // Channel config — HIGH importance for heads-up display
+  static const String _channelId = 'meal_reminder_channel';
+  static const String _channelName = 'Meal Reminders';
+  static const String _channelDescription =
+      'Daily meal and snack reminder notifications';
+
   // Notification IDs
   static const int _breakfastReminderId = 1;
-  static const int _lunchReminderId = 2;
-  static const int _dinnerReminderId = 3;
-  static const int _inactivityReminderId = 4;
-  static const int _calorieLimitId = 100;
+  static const int _morningSnackReminderId = 2;
+  static const int _lunchReminderId = 3;
+  static const int _eveningSnackReminderId = 4;
+  static const int _dinnerReminderId = 5;
+  static const int _inactivityReminderId = 6;
+  static const int _calorieDeficitId = 100;
+  static const int _calorieLimitId = 101;
   static const int _healthAlertId = 200;
 
   // Preference keys
@@ -98,9 +149,9 @@ class NotificationService {
     try {
       final String timeZoneName = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(timeZoneName));
+      debugPrint('Timezone set to: $timeZoneName');
     } catch (e) {
-      // Fallback to UTC if timezone detection fails
-      debugPrint('Timezone detection failed: $e');
+      debugPrint('Timezone detection failed, using UTC: $e');
     }
 
     // Initialize notifications
@@ -121,6 +172,26 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
+    // Create the Android notification channel with HIGH importance
+    if (Platform.isAndroid) {
+      final androidPlugin = _notifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            _channelName,
+            description: _channelDescription,
+            importance: Importance.high,
+          ),
+        );
+        // Request permissions on Android 13+
+        await androidPlugin.requestNotificationsPermission();
+        await androidPlugin.requestExactAlarmsPermission();
+      }
+    }
+
     // Load saved settings
     await _loadSettings();
     
@@ -131,7 +202,6 @@ class NotificationService {
   /// Handle notification tap
   static void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
-    // Navigation can be handled here if needed
   }
 
   /// Request notification permissions (especially for Android 13+)
@@ -165,7 +235,6 @@ class NotificationService {
       final settingsJson = prefs.getString(_prefsKey);
       if (settingsJson != null) {
         final Map<String, dynamic> json = {};
-        // Parse simple key-value format
         for (final entry in settingsJson.split(',')) {
           final parts = entry.split(':');
           if (parts.length == 2) {
@@ -214,35 +283,68 @@ class NotificationService {
     }
   }
 
-  /// Schedule all daily meal reminders
+  /// Schedule all 5 daily meal reminders.
+  /// Always cancels and reschedules to survive OEM battery optimisations.
   static Future<void> scheduleDailyReminders() async {
     if (!_settings.dailyReminders) return;
 
+    // Cancel all existing meal reminders first — OPPO / Realme / OnePlus
+    // can silently kill scheduled alarms, so we must reschedule every launch.
+    await cancelAllReminders();
+
+    // Breakfast
     await _scheduleDaily(
       id: _breakfastReminderId,
       hour: _settings.breakfastHour,
-      minute: 0,
-      title: 'Good morning! 🌅',
-      body: "Don't forget to log your breakfast today! Start your day with healthy tracking.",
+      minute: _settings.breakfastMinute,
+      title: 'Breakfast Time 🍳',
+      body: 'Start your day healthy. Log your breakfast now!',
     );
 
+    // Morning Snack
+    await _scheduleDaily(
+      id: _morningSnackReminderId,
+      hour: _settings.morningSnackHour,
+      minute: _settings.morningSnackMinute,
+      title: 'Snack Time 🍎',
+      body: 'Have a healthy snack and log it now!',
+    );
+
+    // Lunch
     await _scheduleDaily(
       id: _lunchReminderId,
       hour: _settings.lunchHour,
-      minute: 0,
-      title: 'Lunchtime! 🍽️',
-      body: "Time to log your lunch. Keep up the great tracking habit!",
+      minute: _settings.lunchMinute,
+      title: 'Lunch Reminder 🥗',
+      body: "Don't forget to log your lunch intake.",
     );
 
+    // Evening Snack
+    await _scheduleDaily(
+      id: _eveningSnackReminderId,
+      hour: _settings.eveningSnackHour,
+      minute: _settings.eveningSnackMinute,
+      title: 'Evening Snack 🍌',
+      body: 'Time for a light snack. Stay on track!',
+    );
+
+    // Dinner
     await _scheduleDaily(
       id: _dinnerReminderId,
       hour: _settings.dinnerHour,
-      minute: 0,
-      title: 'Dinner time! 🌙',
-      body: "Remember to log your dinner. You're doing great with your health journey!",
+      minute: _settings.dinnerMinute,
+      title: 'Dinner Time 🍽',
+      body: 'Track your dinner and stay on target!',
     );
 
-    debugPrint('Daily reminders scheduled: ${_settings.breakfastHour}:00, ${_settings.lunchHour}:00, ${_settings.dinnerHour}:00');
+    // Log what was scheduled for debugging
+    final pending = await _notifications.pendingNotificationRequests();
+    debugPrint('✅ Scheduled ${pending.length} notifications:');
+    for (final n in pending) {
+      debugPrint('   ID ${n.id}: ${n.title}');
+    }
+
+    debugPrint('Daily reminders scheduled (5 meals)');
   }
 
   /// Schedule a daily recurring notification
@@ -255,6 +357,7 @@ class NotificationService {
   }) async {
     try {
       final scheduledTime = _nextInstanceOfTime(hour, minute);
+      debugPrint('Scheduling notification ID $id at $scheduledTime');
       
       await _notifications.zonedSchedule(
         id,
@@ -262,20 +365,22 @@ class NotificationService {
         body,
         scheduledTime,
         _notificationDetails(),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
         payload: 'daily_reminder',
       );
     } catch (e) {
-      debugPrint('Error scheduling notification: $e');
+      debugPrint('Error scheduling notification $id: $e');
     }
   }
 
   /// Get the next instance of a specific time
   static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduledDate = tz.TZDateTime(
+        tz.local, now.year, now.month, now.day, hour, minute);
     
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
@@ -302,16 +407,52 @@ class NotificationService {
     await _notifications.cancel(_inactivityReminderId);
   }
 
+  /// Schedule a 9 PM calorie deficit reminder if consumed < target
+  static Future<void> scheduleCalorieDeficitReminder({
+    required int consumedCalories,
+    required int targetCalories,
+  }) async {
+    // Cancel any existing deficit reminder first
+    await _notifications.cancel(_calorieDeficitId);
+
+    // Only schedule if there's a deficit
+    if (consumedCalories >= targetCalories) return;
+
+    final deficit = targetCalories - consumedCalories;
+
+    try {
+      await _notifications.zonedSchedule(
+        _calorieDeficitId,
+        'Calorie Check 📊',
+        "You're $deficit kcal short of your goal. Log your meals!",
+        _nextInstanceOfTime(21, 0), // 9:00 PM
+        _notificationDetails(),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'calorie_deficit',
+      );
+    } catch (e) {
+      debugPrint('Error scheduling calorie deficit reminder: $e');
+    }
+  }
+
   /// Show calorie limit alert notification
-  static Future<void> showCalorieLimitAlert(int currentCalories, int targetCalories) async {
+  static Future<void> showCalorieLimitAlert(
+      int currentCalories, int targetCalories) async {
     if (!_settings.calorieLimitAlerts) return;
 
     final percentage = ((currentCalories / targetCalories) * 100).round();
-    
+    final exceeded = currentCalories > targetCalories;
+
     await _notifications.show(
       _calorieLimitId,
-      'Approaching your calorie target! 📊',
-      "You've reached $percentage% of your daily goal ($currentCalories/$targetCalories kcal). Track wisely!",
+      exceeded
+          ? 'Calorie limit exceeded! ⚠️'
+          : 'Approaching your calorie target! 📊',
+      exceeded
+          ? "You've consumed $currentCalories/$targetCalories kcal ($percentage%). Consider lighter meals for the rest of the day."
+          : "You've reached $percentage% of your daily goal ($currentCalories/$targetCalories kcal). Track wisely!",
       _notificationDetails(),
       payload: 'calorie_limit',
     );
@@ -334,15 +475,15 @@ class NotificationService {
     );
   }
 
-  /// Get notification details configuration
+  /// Notification details — uses HIGH importance channel
   static NotificationDetails _notificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
-        'calories_tracker_channel',
-        'Calories Tracker',
-        channelDescription: 'Notifications for meal reminders and health alerts',
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
         icon: '@mipmap/ic_launcher',
         styleInformation: BigTextStyleInformation(''),
       ),
@@ -357,9 +498,12 @@ class NotificationService {
   /// Cancel all scheduled reminders
   static Future<void> cancelAllReminders() async {
     await _notifications.cancel(_breakfastReminderId);
+    await _notifications.cancel(_morningSnackReminderId);
     await _notifications.cancel(_lunchReminderId);
+    await _notifications.cancel(_eveningSnackReminderId);
     await _notifications.cancel(_dinnerReminderId);
     await _notifications.cancel(_inactivityReminderId);
+    await _notifications.cancel(_calorieDeficitId);
   }
 
   /// Cancel all notifications
@@ -374,4 +518,6 @@ class NotificationService {
   static const String healthDisclaimer = 
       'These notifications are for awareness only and do not constitute medical advice. '
       'Please consult your healthcare provider for personalized dietary guidance.';
+
 }
+

@@ -110,9 +110,8 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
     // Cancel inactivity reminder since user logged food
     await NotificationService.cancelInactivityReminder();
     
-    // Check if approaching calorie limit (> 90% of target)
-    if (_dailySummary.totalCalories > widget.targetCalories * 0.9 &&
-        _dailySummary.totalCalories <= widget.targetCalories) {
+    // Check if approaching or exceeding calorie limit (> 90% of target)
+    if (_dailySummary.totalCalories > widget.targetCalories * 0.9) {
       await NotificationService.showCalorieLimitAlert(
         _dailySummary.totalCalories,
         widget.targetCalories,

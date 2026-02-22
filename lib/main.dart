@@ -18,6 +18,9 @@ void main() async {
 
 
   await NotificationService.initialize();
+  await NotificationService.requestPermissions();
+  await NotificationService.scheduleDailyReminders();
+
   runApp(const CaloriesTrackerApp());
 }
 

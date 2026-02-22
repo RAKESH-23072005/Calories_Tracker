@@ -552,10 +552,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildNotificationToggle(
               icon: Icons.wb_sunny,
               title: 'Meal Reminders',
-              subtitle: 'Daily reminders at 8 AM, 1 PM, 8 PM',
+              subtitle: 'Daily reminders for each meal',
               value: _notificationSettings.dailyReminders,
               onChanged: (value) => _updateNotificationSetting(dailyReminders: value),
             ),
+
+            // Time pickers — only visible when meal reminders are ON
+            if (_notificationSettings.dailyReminders) ...[
+              const Divider(height: 24),
+              const Padding(
+                padding: EdgeInsets.only(left: 4, bottom: 12),
+                child: Text(
+                  'Tap to change reminder times',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                ),
+              ),
+              _buildTimePicker(
+                icon: Icons.free_breakfast,
+                label: 'Breakfast',
+                hour: _notificationSettings.breakfastHour,
+                minute: _notificationSettings.breakfastMinute,
+                onTimePicked: (t) => _updateNotificationSetting(
+                  breakfastHour: t.hour,
+                  breakfastMinute: t.minute,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildTimePicker(
+                icon: Icons.apple,
+                label: 'Morning Snack',
+                hour: _notificationSettings.morningSnackHour,
+                minute: _notificationSettings.morningSnackMinute,
+                onTimePicked: (t) => _updateNotificationSetting(
+                  morningSnackHour: t.hour,
+                  morningSnackMinute: t.minute,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildTimePicker(
+                icon: Icons.lunch_dining,
+                label: 'Lunch',
+                hour: _notificationSettings.lunchHour,
+                minute: _notificationSettings.lunchMinute,
+                onTimePicked: (t) => _updateNotificationSetting(
+                  lunchHour: t.hour,
+                  lunchMinute: t.minute,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildTimePicker(
+                icon: Icons.icecream,
+                label: 'Evening Snack',
+                hour: _notificationSettings.eveningSnackHour,
+                minute: _notificationSettings.eveningSnackMinute,
+                onTimePicked: (t) => _updateNotificationSetting(
+                  eveningSnackHour: t.hour,
+                  eveningSnackMinute: t.minute,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildTimePicker(
+                icon: Icons.dinner_dining,
+                label: 'Dinner',
+                hour: _notificationSettings.dinnerHour,
+                minute: _notificationSettings.dinnerMinute,
+                onTimePicked: (t) => _updateNotificationSetting(
+                  dinnerHour: t.hour,
+                  dinnerMinute: t.minute,
+                ),
+              ),
+            ],
+
             const Divider(height: 20),
             _buildNotificationToggle(
               icon: Icons.trending_up,
@@ -590,6 +657,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimePicker({
+    required IconData icon,
+    required String label,
+    required int hour,
+    required int minute,
+    required ValueChanged<TimeOfDay> onTimePicked,
+  }) {
+    final time = TimeOfDay(hour: hour, minute: minute);
+    return InkWell(
+      onTap: () async {
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: time,
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: AppTheme.primaryGreen,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null) {
+          onTimePicked(picked);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.softGrey,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: AppTheme.primaryGreen),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    time.format(context),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right, size: 16, color: AppTheme.primaryGreen),
                 ],
               ),
             ),
@@ -642,11 +786,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool? dailyReminders,
     bool? calorieLimitAlerts,
     bool? healthAlerts,
+    int? breakfastHour,
+    int? breakfastMinute,
+    int? morningSnackHour,
+    int? morningSnackMinute,
+    int? lunchHour,
+    int? lunchMinute,
+    int? eveningSnackHour,
+    int? eveningSnackMinute,
+    int? dinnerHour,
+    int? dinnerMinute,
   }) async {
     final newSettings = _notificationSettings.copyWith(
       dailyReminders: dailyReminders,
       calorieLimitAlerts: calorieLimitAlerts,
       healthAlerts: healthAlerts,
+      breakfastHour: breakfastHour,
+      breakfastMinute: breakfastMinute,
+      morningSnackHour: morningSnackHour,
+      morningSnackMinute: morningSnackMinute,
+      lunchHour: lunchHour,
+      lunchMinute: lunchMinute,
+      eveningSnackHour: eveningSnackHour,
+      eveningSnackMinute: eveningSnackMinute,
+      dinnerHour: dinnerHour,
+      dinnerMinute: dinnerMinute,
     );
     
     setState(() => _notificationSettings = newSettings);
