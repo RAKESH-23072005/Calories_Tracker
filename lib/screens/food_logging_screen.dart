@@ -8,6 +8,9 @@ import '../services/daily_log_service.dart';
 import '../services/firestore_service.dart';
 import '../services/health_alert_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/bottom_nav_bar.dart';
+import 'weekly_analytics_screen.dart';
+import 'profile_screen.dart';
 
 class FoodLoggingScreen extends StatefulWidget {
   final int targetCalories;
