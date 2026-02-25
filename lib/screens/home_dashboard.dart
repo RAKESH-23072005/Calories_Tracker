@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../utils/bmr_calculator.dart';
+import '../utils/macro_calculator.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
@@ -9,6 +10,7 @@ import '../services/notification_service.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'food_logging_screen.dart';
 import 'profile_screen.dart';
+import 'weekly_analytics_screen.dart';
 
 class HomeDashboard extends StatefulWidget {
   final int targetCalories;
@@ -305,10 +307,26 @@ class _HomeDashboardState extends State<HomeDashboard> {
   }
 
   Widget _buildMacronutrientsCard() {
-    final protein = _dailyLog?.totalProtein ?? 0;
-    final fat = _dailyLog?.totalFat ?? 0;
-    final carbs = _dailyLog?.totalCarbs ?? 0;
-    final total = protein + fat + carbs;
+    // Get consumed macros from daily log
+    final consumedProtein = _dailyLog?.totalProtein ?? 0;
+    final consumedFat = _dailyLog?.totalFat ?? 0;
+    final consumedCarbs = _dailyLog?.totalCarbs ?? 0;
+
+    // Calculate target macros based on user profile
+    final profile = FirestoreService.cachedProfile;
+    MacroResult? targetMacros;
+    
+    if (profile != null) {
+      targetMacros = MacroCalculator.calculate(
+        weightKg: profile.weight,
+        totalCalories: widget.targetCalories,
+        goal: widget.goal,
+      );
+    }
+
+    final targetProtein = targetMacros?.proteinGrams ?? 0;
+    final targetFat = targetMacros?.fatGrams ?? 0;
+    final targetCarbs = targetMacros?.carbGrams ?? 0;
 
     return Card(
       elevation: 4,
@@ -318,28 +336,60 @@ class _HomeDashboardState extends State<HomeDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.pie_chart, color: AppTheme.primaryGreen, size: 22),
-                SizedBox(width: 8),
-                Text('Macronutrients', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
-              ],
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
+                const Icon(Icons.pie_chart, color: AppTheme.primaryGreen, size: 22),
+                const SizedBox(width: 8),
+                const Text('Macronutrients', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
+                const Spacer(),
+                if (targetMacros != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${widget.targetCalories} kcal',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                // Pie Chart
                 SizedBox(
                   width: 100,
                   height: 100,
-                  child: total > 0
+                  child: targetMacros != null
                       ? PieChart(
                           PieChartData(
                             sectionsSpace: 2,
                             centerSpaceRadius: 25,
                             sections: [
-                              PieChartSectionData(value: protein, color: AppTheme.accentBlue, title: '', radius: 22),
-                              PieChartSectionData(value: fat, color: AppTheme.accentOrange, title: '', radius: 22),
-                              PieChartSectionData(value: carbs, color: Colors.purple, title: '', radius: 22),
+                              PieChartSectionData(
+                                value: targetMacros.proteinPercentage,
+                                color: AppTheme.accentBlue,
+                                title: '${targetMacros.proteinPercentage.round()}%',
+                                titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                radius: 22,
+                              ),
+                              PieChartSectionData(
+                                value: targetMacros.fatPercentage,
+                                color: AppTheme.accentOrange,
+                                title: '${targetMacros.fatPercentage.round()}%',
+                                titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                radius: 22,
+                              ),
+                              PieChartSectionData(
+                                value: targetMacros.carbPercentage,
+                                color: Colors.purple,
+                                title: '${targetMacros.carbPercentage.round()}%',
+                                titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                radius: 22,
+                              ),
                             ],
                           ),
                         )
@@ -349,14 +399,33 @@ class _HomeDashboardState extends State<HomeDashboard> {
                         ),
                 ),
                 const SizedBox(width: 20),
+                // Macro progress bars
                 Expanded(
                   child: Column(
                     children: [
-                      _buildMacroRow('Protein', protein, 'g', AppTheme.accentBlue),
-                      const SizedBox(height: 10),
-                      _buildMacroRow('Fat', fat, 'g', AppTheme.accentOrange),
-                      const SizedBox(height: 10),
-                      _buildMacroRow('Carbs', carbs, 'g', Colors.purple),
+                      _buildMacroProgressRow(
+                        label: 'Protein',
+                        consumed: consumedProtein,
+                        target: targetProtein,
+                        color: AppTheme.accentBlue,
+                        calories: (consumedProtein * 4).round(),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildMacroProgressRow(
+                        label: 'Fat',
+                        consumed: consumedFat,
+                        target: targetFat,
+                        color: AppTheme.accentOrange,
+                        calories: (consumedFat * 9).round(),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildMacroProgressRow(
+                        label: 'Carbs',
+                        consumed: consumedCarbs,
+                        target: targetCarbs,
+                        color: Colors.purple,
+                        calories: (consumedCarbs * 4).round(),
+                      ),
                     ],
                   ),
                 ),
@@ -368,17 +437,74 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
-  Widget _buildMacroRow(String label, double value, String unit, Color color) {
-    return Row(
+  Widget _buildMacroProgressRow({
+    required String label,
+    required double consumed,
+    required double target,
+    required Color color,
+    required int calories,
+  }) {
+    final progress = target > 0 ? (consumed / target).clamp(0.0, 1.0) : 0.0;
+    final isOver = consumed > target && target > 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-        const Spacer(),
-        Text('${value.toStringAsFixed(1)}$unit', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.darkGrey)),
+            const Spacer(),
+            Text(
+              '${consumed.toStringAsFixed(0)}g',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isOver ? AppTheme.accentRed : color,
+              ),
+            ),
+            Text(
+              ' / ${target.toStringAsFixed(0)}g',
+              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Stack(
+          children: [
+            Container(
+              height: 6,
+              decoration: BoxDecoration(
+                color: AppTheme.mediumGrey,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            FractionallySizedBox(
+              widthFactor: progress,
+              child: Container(
+                height: 6,
+                decoration: BoxDecoration(
+                  color: isOver ? AppTheme.accentRed : color,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '$calories kcal • ${(progress * 100).round()}%',
+          style: TextStyle(fontSize: 9, color: AppTheme.textSecondary.withValues(alpha: 0.8)),
+        ),
       ],
     );
   }
+
 
   Widget _buildMealBreakdownCard() {
     return Column(
@@ -480,7 +606,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => _navigateToFoodLogging(),
+          onTap: () => _navigateToFoodLogging(mealType: name),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -561,7 +687,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
-  void _navigateToFoodLogging() async {
+  void _navigateToFoodLogging({String mealType = 'Breakfast'}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -569,6 +695,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           targetCalories: widget.targetCalories,
           bmr: widget.bmr,
           goal: widget.goal,
+          initialMealType: mealType,
         ),
       ),
     );
@@ -601,8 +728,18 @@ class _HomeDashboardState extends State<HomeDashboard> {
         _loadDailyLog();
         break;
       case 1:
-        // Analytics - show coming soon
-        _showComingSoonDialog('Analytics');
+        // Analytics
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WeeklyAnalyticsScreen(
+              targetCalories: widget.targetCalories,
+              bmr: widget.bmr,
+              goal: widget.goal,
+              maintenanceCalories: widget.maintenanceCalories,
+            ),
+          ),
+        );
         break;
       case 2:
         // Plan - show coming soon

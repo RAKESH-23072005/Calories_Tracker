@@ -13,12 +13,14 @@ class FoodLoggingScreen extends StatefulWidget {
   final int targetCalories;
   final int bmr;
   final FitnessGoal goal;
+  final String initialMealType;
 
   const FoodLoggingScreen({
     super.key,
     required this.targetCalories,
     required this.bmr,
     required this.goal,
+    this.initialMealType = 'Breakfast',
   });
 
   @override
@@ -37,7 +39,8 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    final initialIndex = _mealTypes.indexOf(widget.initialMealType).clamp(0, 3);
+    _tabController = TabController(length: 4, vsync: this, initialIndex: initialIndex);
     _loadData();
   }
 
@@ -177,6 +180,82 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
         label: const Text('Add Food'),
         backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 0,
+        onTap: _onNavTap,
+        onAddPressed: () => _showFoodSelectionSheet(_mealTypes[_tabController.index]),
+      ),
+    );
+  }
+
+  void _onNavTap(int index) {
+    switch (index) {
+      case 0:
+        // Home — go back to dashboard
+        Navigator.pop(context);
+        break;
+      case 1:
+        // Analytics
+        final profile = FirestoreService.cachedProfile;
+        if (profile != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WeeklyAnalyticsScreen(
+                targetCalories: widget.targetCalories,
+                bmr: widget.bmr,
+                goal: widget.goal,
+                maintenanceCalories: profile.maintenanceCalories,
+              ),
+            ),
+          );
+        }
+        break;
+      case 2:
+        // Plan — coming soon
+        _showComingSoonDialog('Meal Plan');
+        break;
+      case 3:
+        // Settings — navigate to profile
+        final profile = FirestoreService.cachedProfile;
+        if (profile != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfileScreen(
+                profile: profile,
+                onProfileUpdated: () => setState(() {}),
+              ),
+            ),
+          );
+        }
+        break;
+    }
+  }
+
+  void _showComingSoonDialog(String feature) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.construction, color: AppTheme.accentOrange),
+            const SizedBox(width: 8),
+            const Text('Coming Soon'),
+          ],
+        ),
+        content: Text(
+          '$feature feature is under development. Stay tuned for updates!',
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
