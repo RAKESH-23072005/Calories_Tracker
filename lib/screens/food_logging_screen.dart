@@ -195,14 +195,14 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
   void _onNavTap(int index) {
     switch (index) {
       case 0:
-        // Home — go back to dashboard
-        Navigator.pop(context);
+        // Home — go back to dashboard (pop all screens back to root)
+        Navigator.popUntil(context, (route) => route.isFirst);
         break;
       case 1:
         // Analytics
         final profile = FirestoreService.cachedProfile;
         if (profile != null) {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => WeeklyAnalyticsScreen(
@@ -221,14 +221,14 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen> with SingleTicker
         break;
       case 3:
         // Settings — navigate to profile
-        final profile = FirestoreService.cachedProfile;
-        if (profile != null) {
-          Navigator.push(
+        final profile2 = FirestoreService.cachedProfile;
+        if (profile2 != null) {
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => ProfileScreen(
-                profile: profile,
-                onProfileUpdated: () => setState(() {}),
+                profile: profile2,
+                onProfileUpdated: () {},
               ),
             ),
           );

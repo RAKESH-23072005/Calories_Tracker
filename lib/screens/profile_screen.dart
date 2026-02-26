@@ -123,12 +123,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _onNavTap(int index) {
     switch (index) {
       case 0:
-        // Home — go back to dashboard
-        Navigator.pop(context);
+        // Home — go back to dashboard (pop all screens back to root)
+        Navigator.popUntil(context, (route) => route.isFirst);
         break;
       case 1:
         // Analytics
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => WeeklyAnalyticsScreen(

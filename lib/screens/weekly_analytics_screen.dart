@@ -130,8 +130,8 @@ class _WeeklyAnalyticsScreenState extends State<WeeklyAnalyticsScreen>
   void _onNavTap(int index) {
     switch (index) {
       case 0:
-        // Home — go back to dashboard
-        Navigator.pop(context);
+        // Home — go back to dashboard (pop all screens back to root)
+        Navigator.popUntil(context, (route) => route.isFirst);
         break;
       case 1:
         // Already on Analytics — do nothing
@@ -142,7 +142,18 @@ class _WeeklyAnalyticsScreenState extends State<WeeklyAnalyticsScreen>
         break;
       case 3:
         // Settings — navigate to profile
-        _navigateToProfile();
+        final profile = FirestoreService.cachedProfile;
+        if (profile != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfileScreen(
+                profile: profile,
+                onProfileUpdated: () {},
+              ),
+            ),
+          );
+        }
         break;
     }
   }

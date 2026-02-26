@@ -714,14 +714,12 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
         ),
       );
-      // Refresh UI to show updated name
-      setState(() {});
+      // Reset nav index and refresh UI when returning
+      setState(() => _currentNavIndex = 0);
     }
   }
 
   void _onNavTap(int index) {
-    setState(() => _currentNavIndex = index);
-    
     switch (index) {
       case 0:
         // Home - already on home, just refresh
@@ -739,7 +737,11 @@ class _HomeDashboardState extends State<HomeDashboard> {
               maintenanceCalories: widget.maintenanceCalories,
             ),
           ),
-        );
+        ).then((_) {
+          // Reset nav index and refresh data when returning
+          setState(() => _currentNavIndex = 0);
+          _loadDailyLog();
+        });
         break;
       case 2:
         // Plan - show coming soon
