@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../utils/bmr_calculator.dart';
 import 'home_dashboard.dart';
@@ -74,50 +75,37 @@ class _ResultsScreenState extends State<ResultsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1B5E20), // Dark green
-              Color(0xFF4CAF50), // Primary green
-              Color(0xFF81C784), // Light green
-            ],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: ScaleTransition(
-                      scale: _scaleAnimation,
-                      child: Column(
-                        children: [
-                          _buildHeaderSection(),
-                          const SizedBox(height: 24),
-                          _buildUserSummary(),
-                          const SizedBox(height: 24),
-                          _buildMainResultCard(),
-                          const SizedBox(height: 16),
-                          _buildDetailCards(),
-                          const SizedBox(height: 32),
-                          _buildContinueButton(),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildAppBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Column(
+                      children: [
+                        _buildHeaderSection(),
+                        const SizedBox(height: 24),
+                        _buildUserSummary(),
+                        const SizedBox(height: 24),
+                        _buildMainResultCard(),
+                        const SizedBox(height: 14),
+                        _buildDetailCards(),
+                        const SizedBox(height: 28),
+                        _buildContinueButton(),
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -125,25 +113,33 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.softGrey,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 18, color: AppTheme.textPrimary),
+            ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
               'Your Results',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
+              style: GoogleFonts.poppins(
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 48), // Balance the back button
+          const SizedBox(width: 40),
         ],
       ),
     );
@@ -152,33 +148,31 @@ class _ResultsScreenState extends State<ResultsScreen>
   Widget _buildHeaderSection() {
     return Column(
       children: [
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
+            color: AppTheme.primaryGreenSurface,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.emoji_events,
-            size: 56,
-            color: Colors.white,
-          ),
+          child: const Icon(Icons.emoji_events_rounded,
+              size: 44, color: AppTheme.primaryGreen),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Calculation Complete!',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
         Text(
-          'Here\'s your personalized calorie plan',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.white.withValues(alpha: 0.9),
+          'Calculation Complete! 🎉',
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          "Here's your personalized calorie plan",
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: AppTheme.textTertiary,
           ),
         ),
       ],
@@ -187,21 +181,23 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Widget _buildUserSummary() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(30),
+        color: AppTheme.primaryGreenSurface,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildSummaryChip(Icons.person, widget.gender.label),
+          _buildSummaryChip(Icons.person_rounded, widget.gender.label),
           _buildDivider(),
-          _buildSummaryChip(Icons.cake, '${widget.age} yrs'),
+          _buildSummaryChip(Icons.cake_rounded, '${widget.age} yrs'),
           _buildDivider(),
-          _buildSummaryChip(Icons.height, '${widget.height.round()} cm'),
+          _buildSummaryChip(
+              Icons.height_rounded, '${widget.height.round()} cm'),
           _buildDivider(),
-          _buildSummaryChip(Icons.fitness_center, '${widget.weight.round()} kg'),
+          _buildSummaryChip(Icons.fitness_center_rounded,
+              '${widget.weight.round()} kg'),
         ],
       ),
     );
@@ -211,14 +207,14 @@ class _ResultsScreenState extends State<ResultsScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: Colors.white70),
+        Icon(icon, size: 14, color: AppTheme.primaryGreen),
         const SizedBox(width: 4),
         Text(
           text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+          style: GoogleFonts.poppins(
+            color: AppTheme.primaryGreen,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -227,32 +223,27 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Widget _buildDivider() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       width: 1,
-      height: 16,
-      color: Colors.white30,
+      height: 14,
+      color: AppTheme.primaryGreen.withValues(alpha: 0.3),
     );
   }
 
   Widget _buildMainResultCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: AppTheme.softShadow,
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: _getGoalColor().withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
@@ -260,47 +251,44 @@ class _ResultsScreenState extends State<ResultsScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(_getGoalIcon(), color: _getGoalColor(), size: 20),
-                const SizedBox(width: 8),
+                Icon(_getGoalIcon(),
+                    color: _getGoalColor(), size: 18),
+                const SizedBox(width: 6),
                 Text(
                   widget.result.goal.label,
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     color: _getGoalColor(),
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Daily Calorie Target',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
+          Text('Daily Calorie Target',
+              style: GoogleFonts.poppins(
+                  fontSize: 14, color: AppTheme.textSecondary)),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 '${widget.result.targetCalories.round()}',
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.poppins(
+                  fontSize: 56,
+                  fontWeight: FontWeight.w700,
                   color: _getGoalColor(),
                   height: 1,
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8, left: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 4),
                 child: Text(
                   'kcal',
-                  style: TextStyle(
-                    fontSize: 20,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -308,12 +296,12 @@ class _ResultsScreenState extends State<ResultsScreen>
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             widget.result.goal.description,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppTheme.textSecondary,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: AppTheme.textTertiary,
             ),
           ),
         ],
@@ -326,8 +314,8 @@ class _ResultsScreenState extends State<ResultsScreen>
       children: [
         Expanded(
           child: _buildStatCard(
-            icon: Icons.local_fire_department,
-            label: 'Minimum Calories',
+            icon: Icons.local_fire_department_rounded,
+            label: 'Minimum',
             value: '${widget.result.bmr.round()}',
             unit: 'kcal/day',
             color: AppTheme.accentOrange,
@@ -337,8 +325,8 @@ class _ResultsScreenState extends State<ResultsScreen>
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            icon: Icons.directions_run,
-            label: 'Maintenance Calories',
+            icon: Icons.directions_run_rounded,
+            label: 'Maintenance',
             value: '${widget.result.maintenanceCalories.round()}',
             unit: 'kcal/day',
             color: AppTheme.primaryGreen,
@@ -358,17 +346,11 @@ class _ResultsScreenState extends State<ResultsScreen>
     required String description,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.softShadow,
       ),
       child: Column(
         children: [
@@ -378,41 +360,30 @@ class _ResultsScreenState extends State<ResultsScreen>
               color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 22),
           ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 10),
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: 12, color: AppTheme.textSecondary)),
+          const SizedBox(height: 2),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
               color: color,
             ),
           ),
-          Text(
-            unit,
-            style: TextStyle(
-              fontSize: 12,
-              color: color.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          Text(unit,
+              style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: color.withValues(alpha: 0.7))),
+          const SizedBox(height: 2),
+          Text(description,
+              style: GoogleFonts.poppins(
+                  fontSize: 10, color: AppTheme.textTertiary),
+              textAlign: TextAlign.center),
         ],
       ),
     );
@@ -421,18 +392,33 @@ class _ResultsScreenState extends State<ResultsScreen>
   Widget _buildContinueButton() {
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton.icon(
+      height: 56,
+      child: ElevatedButton(
         onPressed: _navigateToDashboard,
-        icon: const Icon(Icons.dashboard),
-        label: const Text('Go to Dashboard'),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: AppTheme.primaryGreen,
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          backgroundColor: AppTheme.primaryGreen,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 4,
+              borderRadius: BorderRadius.circular(16)),
+          elevation: 0,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.dashboard_rounded,
+                color: Colors.white, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Go to Dashboard',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_forward_rounded,
+                color: Colors.white, size: 20),
+          ],
         ),
       ),
     );
@@ -441,11 +427,11 @@ class _ResultsScreenState extends State<ResultsScreen>
   IconData _getGoalIcon() {
     switch (widget.result.goal) {
       case FitnessGoal.weightLoss:
-        return Icons.trending_down;
+        return Icons.trending_down_rounded;
       case FitnessGoal.maintenance:
-        return Icons.balance;
+        return Icons.balance_rounded;
       case FitnessGoal.weightGain:
-        return Icons.trending_up;
+        return Icons.trending_up_rounded;
     }
   }
 

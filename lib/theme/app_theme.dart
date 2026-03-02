@@ -1,31 +1,119 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Primary Colors
-  static const Color primaryGreen = Color(0xFF4CAF50);
-  static const Color primaryGreenLight = Color(0xFF81C784);
-  static const Color primaryGreenDark = Color(0xFF388E3C);
+  // ── LifeFit Primary Palette ──────────────────────────────────────────
+  static const Color primaryGreen = Color(0xFF2DB573);
+  static const Color primaryGreenLight = Color(0xFF5DD39E);
+  static const Color primaryGreenDark = Color(0xFF1E8A56);
+  static const Color primaryGreenSurface = Color(0xFFE8F8F0);
 
-  // Neutral Colors
+  // ── Neutral Colors ───────────────────────────────────────────────────
   static const Color white = Color(0xFFFFFFFF);
-  static const Color softGrey = Color(0xFFF5F5F5);
-  static const Color mediumGrey = Color(0xFFE0E0E0);
-  static const Color darkGrey = Color(0xFF333333);
-  static const Color textSecondary = Color(0xFF757575);
+  static const Color background = Color(0xFFF7F8FA);
+  static const Color softGrey = Color(0xFFF2F3F5);
+  static const Color mediumGrey = Color(0xFFE0E2E8);
+  static const Color darkGrey = Color(0xFF1F2937);
+  static const Color textPrimary = Color(0xFF1F2937);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textTertiary = Color(0xFF9CA3AF);
 
-  // Accent Colors
-  static const Color accentOrange = Color(0xFFFF9800);
-  static const Color accentRed = Color(0xFFE53935);
-  static const Color accentBlue = Color(0xFF2196F3);
+  // ── Accent Colors ────────────────────────────────────────────────────
+  static const Color accentOrange = Color(0xFFFF9F43);
+  static const Color accentRed = Color(0xFFEE5A5A);
+  static const Color accentBlue = Color(0xFF54A0FF);
+  static const Color accentPurple = Color(0xFF8B5CF6);
+  static const Color accentPink = Color(0xFFFF6B9D);
 
-  // Health-related Colors
+  // ── Meal Colors (LifeFit style) ──────────────────────────────────────
+  static const Color breakfastColor = Color(0xFFFFB74D);
+  static const Color lunchColor = Color(0xFF4FC3F7);
+  static const Color dinnerColor = Color(0xFF7E57C2);
+  static const Color snackColor = Color(0xFFFF8A65);
+
+  // ── Health-related Colors ────────────────────────────────────────────
   static const Color softYellow = Color(0xFFFFF9C4);
   static const Color warningYellow = Color(0xFFFFD54F);
   static const Color healthGreen = Color(0xFF66BB6A);
 
+  // ── Card & Surface ───────────────────────────────────────────────────
+  static const double cardRadius = 20.0;
+  static const double buttonRadius = 16.0;
+  static const double inputRadius = 14.0;
+
+  // ── Shadows ──────────────────────────────────────────────────────────
+  static List<BoxShadow> get softShadow => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.04),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  static List<BoxShadow> get cardShadow => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.06),
+      blurRadius: 20,
+      offset: const Offset(0, 6),
+    ),
+  ];
+
+  // ── Text Styles (Poppins) ────────────────────────────────────────────
+  static TextStyle get headingLarge => GoogleFonts.poppins(
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    color: textPrimary,
+  );
+
+  static TextStyle get headingMedium => GoogleFonts.poppins(
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
+    color: textPrimary,
+  );
+
+  static TextStyle get headingSmall => GoogleFonts.poppins(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: textPrimary,
+  );
+
+  static TextStyle get bodyLarge => GoogleFonts.poppins(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    color: textPrimary,
+  );
+
+  static TextStyle get bodyMedium => GoogleFonts.poppins(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: textSecondary,
+  );
+
+  static TextStyle get bodySmall => GoogleFonts.poppins(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: textTertiary,
+  );
+
+  static TextStyle get labelBold => GoogleFonts.poppins(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: textPrimary,
+  );
+
+  static TextStyle get caption => GoogleFonts.poppins(
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    color: textTertiary,
+  );
+
+  // ── Theme Data ───────────────────────────────────────────────────────
   static ThemeData get lightTheme {
+    final textTheme = GoogleFonts.poppinsTextTheme();
+
     return ThemeData(
       useMaterial3: true,
+      textTheme: textTheme,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryGreen,
         brightness: Brightness.light,
@@ -34,52 +122,61 @@ class AppTheme {
         surface: white,
         error: accentRed,
       ),
-      scaffoldBackgroundColor: softGrey,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryGreen,
-        foregroundColor: white,
+      scaffoldBackgroundColor: background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: true,
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
       ),
       cardTheme: CardThemeData(
         color: white,
-        elevation: 2,
-        shadowColor: darkGrey.withValues(alpha: 0.1),
+        elevation: 0,
+        shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(cardRadius),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: white,
+        fillColor: softGrey,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: mediumGrey),
+          borderRadius: BorderRadius.circular(inputRadius),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: mediumGrey),
+          borderRadius: BorderRadius.circular(inputRadius),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primaryGreen, width: 2),
+          borderRadius: BorderRadius.circular(inputRadius),
+          borderSide: const BorderSide(color: primaryGreen, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(inputRadius),
           borderSide: const BorderSide(color: accentRed),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: GoogleFonts.poppins(
+          fontSize: 14,
+          color: textTertiary,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen,
           foregroundColor: white,
-          elevation: 2,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(buttonRadius),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -103,20 +200,31 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         selectedColor: primaryGreen,
-        backgroundColor: white,
-        labelStyle: const TextStyle(fontSize: 14),
+        backgroundColor: softGrey,
+        labelStyle: GoogleFonts.poppins(fontSize: 13),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
         ),
-        side: const BorderSide(color: mediumGrey),
+        side: BorderSide.none,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(cardRadius),
+        ),
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: white,
+          fillColor: softGrey,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: mediumGrey),
+            borderRadius: BorderRadius.circular(inputRadius),
+            borderSide: BorderSide.none,
           ),
         ),
       ),

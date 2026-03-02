@@ -17,45 +17,46 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
-            offset: const Offset(0, -5),
+            offset: const Offset(0, -4),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 70,
+          height: 72,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildNavItem(
                 icon: Icons.home_outlined,
-                activeIcon: Icons.home,
+                activeIcon: Icons.home_rounded,
                 label: 'Home',
                 index: 0,
               ),
               _buildNavItem(
                 icon: Icons.analytics_outlined,
-                activeIcon: Icons.analytics,
+                activeIcon: Icons.analytics_rounded,
                 label: 'Analytics',
                 index: 1,
               ),
               _buildAddButton(),
               _buildNavItem(
                 icon: Icons.calendar_today_outlined,
-                activeIcon: Icons.calendar_today,
+                activeIcon: Icons.calendar_today_rounded,
                 label: 'Plan',
                 index: 2,
               ),
               _buildNavItem(
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings,
-                label: 'Setting',
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
+                label: 'Profile',
                 index: 3,
               ),
             ],
@@ -80,18 +81,28 @@ class BottomNavBar extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: isActive ? AppTheme.primaryGreen : AppTheme.textSecondary,
-              size: 24,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppTheme.primaryGreen.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                isActive ? activeIcon : icon,
+                color: isActive ? AppTheme.primaryGreen : AppTheme.textTertiary,
+                size: 24,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
-                color: isActive ? AppTheme.primaryGreen : AppTheme.textSecondary,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 10,
+                color: isActive ? AppTheme.primaryGreen : AppTheme.textTertiary,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],
@@ -104,30 +115,23 @@ class BottomNavBar extends StatelessWidget {
     return GestureDetector(
       onTap: onAddPressed,
       child: Container(
-        width: 56,
-        height: 56,
+        width: 52,
+        height: 52,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primaryGreen,
-              AppTheme.primaryGreenLight,
-            ],
-          ),
+          color: AppTheme.primaryGreen,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppTheme.primaryGreen.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: const Icon(
-          Icons.add,
+          Icons.add_rounded,
           color: Colors.white,
-          size: 32,
+          size: 28,
         ),
       ),
     );
