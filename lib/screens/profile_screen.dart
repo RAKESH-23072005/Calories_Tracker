@@ -26,7 +26,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   late FirestoreUserProfile _profile;
   bool _isEditing = false;
   bool _isSaving = false;
@@ -40,11 +41,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late ActivityLevel _editActivityLevel;
   late FitnessGoal _editGoal;
 
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
     _initEditControllers();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _animController.forward();
   }
 
   void _initEditControllers() {
@@ -68,42 +78,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildAppBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    _buildProfileHeader(),
+      body: FadeTransition(
+        opacity: _fadeAnim,
+        child: CustomScrollView(
+          slivers: [
+            // ── Gradient Header ─────────────────────────────────
+            SliverToBoxAdapter(child: _buildGradientHeader()),
+            // ── Content ─────────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  if (_isEditing) ...[
+                    _buildEditForm(),
+                  ] else ...[
+                    _buildQuickStats(),
+                    const SizedBox(height: 14),
+                    _buildPersonalInfoCard(),
+                    const SizedBox(height: 14),
+                    _buildGoalCard(),
+                    const SizedBox(height: 14),
+                    _buildHealthConditionsCard(),
+                    const SizedBox(height: 14),
+                    _buildNotificationSettingsCard(),
                     const SizedBox(height: 20),
-                    _isEditing
-                        ? _buildEditForm()
-                        : _buildPersonalInfoCard(),
-                    const SizedBox(height: 12),
-                    if (!_isEditing) _buildCalorieInfoCard(),
-                    if (!_isEditing) const SizedBox(height: 12),
-                    if (!_isEditing) _buildGoalCard(),
-                    if (!_isEditing) const SizedBox(height: 12),
-                    if (!_isEditing) _buildHealthConditionsCard(),
-                    if (!_isEditing) const SizedBox(height: 12),
-                    if (!_isEditing) _buildNotificationSettingsCard(),
-                    if (!_isEditing) const SizedBox(height: 20),
-                    if (!_isEditing) _buildActionsCard(),
+                    _buildActionsSection(),
                     const SizedBox(height: 32),
                   ],
-                ),
+                ]),
               ),
             ),
           ],
@@ -117,176 +127,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── App Bar ────────────────────────────────────────────────────────────
-  Widget _buildAppBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () {
-              if (_isEditing) {
-                setState(() => _isEditing = false);
-                _initEditControllers();
-              } else {
-                Navigator.pop(context);
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.softGrey,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                _isEditing
-                    ? Icons.close_rounded
-                    : Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              _isEditing ? 'Edit Profile' : 'My Profile',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          if (_isEditing)
-            GestureDetector(
-              onTap: _isSaving ? null : _saveProfile,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 20),
-              ),
-            )
-          else
-            GestureDetector(
-              onTap: () => setState(() => _isEditing = true),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryGreenSurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.edit_rounded,
-                    color: AppTheme.primaryGreen, size: 20),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ── Profile Avatar Header ──────────────────────────────────────────────
-  Widget _buildProfileHeader() {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  GRADIENT HEADER
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Widget _buildGradientHeader() {
     final email = AuthService.currentUser?.email ?? 'User';
     final name =
         _profile.name.isNotEmpty ? _profile.name : email.split('@')[0];
 
-    return Column(
-      children: [
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppTheme.primaryGreen, width: 3),
-          ),
-          child: CircleAvatar(
-            radius: 42,
-            backgroundColor: AppTheme.primaryGreenSurface,
-            child: Text(
-              name[0].toUpperCase(),
-              style: GoogleFonts.poppins(
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primaryGreen,
-              ),
-            ),
-          ),
+    return Container(
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1B7A4A), Color(0xFF2DB573)],
         ),
-        const SizedBox(height: 12),
-        Text(
-          name,
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        Text(
-          email,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            color: AppTheme.textTertiary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Personal Info (View Mode) ──────────────────────────────────────────
-  Widget _buildPersonalInfoCard() {
-    return _buildSection(
-      icon: Icons.person_rounded,
-      title: 'Personal Information',
-      children: [
-        _buildInfoRow(Icons.cake_rounded, 'Age', '${_profile.age} years'),
-        _buildInfoRow(Icons.person_outline_rounded, 'Gender', _profile.gender.label),
-        _buildInfoRow(Icons.height_rounded, 'Height', '${_profile.height.round()} cm'),
-        _buildInfoRow(Icons.fitness_center_rounded, 'Weight', '${_profile.weight.round()} kg'),
-        _buildInfoRow(Icons.directions_run_rounded, 'Activity', _profile.activityLevel.label),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+      ),
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryGreenSurface,
-              borderRadius: BorderRadius.circular(10),
+          // Top bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    if (_isEditing) {
+                      setState(() => _isEditing = false);
+                      _initEditControllers();
+                    } else {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _isEditing
+                          ? Icons.close_rounded
+                          : Icons.arrow_back_ios_new_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                Text(
+                  _isEditing ? 'Edit Profile' : 'My Profile',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _isEditing
+                      ? (_isSaving ? null : _saveProfile)
+                      : () => setState(() => _isEditing = true),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: _isEditing
+                        ? (_isSaving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 20))
+                        : const Icon(Icons.edit_rounded,
+                            color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
             ),
-            child: Icon(icon, color: AppTheme.primaryGreen, size: 18),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+          // Avatar + name
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 24),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: Text(
+                      name[0].toUpperCase(),
+                      style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  email,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -294,204 +258,271 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Edit Form ──────────────────────────────────────────────────────────
-  Widget _buildEditForm() {
-    return _buildSection(
-      icon: Icons.edit_rounded,
-      title: 'Edit Your Details',
-      children: [
-        _buildLabeledField('Username', _nameController,
-            icon: Icons.person_rounded),
-        _buildLabeledField('Age', _ageController,
-            icon: Icons.cake_rounded, isNumeric: true),
-        _buildLabeledField('Height (cm)', _heightController,
-            icon: Icons.height_rounded, isNumeric: true),
-        _buildLabeledField('Weight (kg)', _weightController,
-            icon: Icons.fitness_center_rounded, isNumeric: true),
-        const SizedBox(height: 12),
-        Text('Gender',
-            style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textSecondary)),
-        const SizedBox(height: 8),
-        Row(
-          children: Gender.values.map((gender) {
-            final isSelected = _editGender == gender;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _editGender = gender),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.primaryGreen
-                        : AppTheme.softGrey,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      gender.label,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected
-                            ? Colors.white
-                            : AppTheme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 16),
-        Text('Activity Level',
-            style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textSecondary)),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<ActivityLevel>(
-          value: _editActivityLevel,
-          style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textPrimary),
-          decoration: InputDecoration(
-            prefixIcon: Container(
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryGreenSurface,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.directions_run_rounded,
-                  color: AppTheme.primaryGreen, size: 18),
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  QUICK STATS (BMR / Maintenance / Target)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Widget _buildQuickStats() {
+    return Transform.translate(
+      offset: const Offset(0, -20),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
             ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _buildStatItem('BMR', '${_profile.bmr}', AppTheme.accentOrange,
+                Icons.local_fire_department_rounded),
+            _buildStatDivider(),
+            _buildStatItem(
+                'Maintenance',
+                '${_profile.maintenanceCalories.round()}',
+                AppTheme.primaryGreen,
+                Icons.speed_rounded),
+            _buildStatDivider(),
+            _buildStatItem('Target', '${_profile.targetCalories}',
+                AppTheme.accentBlue, Icons.flag_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+      String label, String value, Color color, IconData icon) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
           ),
-          items: ActivityLevel.values.map((level) {
-            return DropdownMenuItem(
-                value: level,
-                child: Text(level.label,
-                    style: GoogleFonts.poppins(fontSize: 13)));
-          }).toList(),
-          onChanged: (val) =>
-              setState(() => _editActivityLevel = val!),
-        ),
-        const SizedBox(height: 16),
-        Text('Fitness Goal',
-            style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textSecondary)),
-        const SizedBox(height: 8),
-        ...FitnessGoal.values.map((goal) {
-          final isSelected = _editGoal == goal;
-          return GestureDetector(
-            onTap: () => setState(() => _editGoal = goal),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isSelected
-                      ? _getGoalColor(goal)
-                      : AppTheme.softGrey,
-                  width: isSelected ? 2 : 1,
-                ),
-                color: isSelected
-                    ? _getGoalColor(goal).withValues(alpha: 0.06)
-                    : AppTheme.white,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? _getGoalColor(goal).withValues(alpha: 0.15)
-                          : AppTheme.softGrey,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(_getGoalIcon(goal),
-                        color: isSelected
-                            ? _getGoalColor(goal)
-                            : AppTheme.textSecondary,
-                        size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          goal.label,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected
-                                ? _getGoalColor(goal)
-                                : AppTheme.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          goal.description,
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: AppTheme.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isSelected)
-                    Icon(Icons.check_circle_rounded,
-                        color: _getGoalColor(goal), size: 22),
-                ],
-              ),
-            ),
-          );
-        }),
+          const SizedBox(height: 6),
+          Text(value,
+              style: GoogleFonts.poppins(
+                  fontSize: 18, fontWeight: FontWeight.w700, color: color)),
+          Text('kcal',
+              style: GoogleFonts.poppins(
+                  fontSize: 9, color: color.withValues(alpha: 0.7))),
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: 10, color: AppTheme.textTertiary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatDivider() {
+    return Container(
+        width: 1, height: 50, color: AppTheme.softGrey);
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  PERSONAL INFO (View)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Widget _buildPersonalInfoCard() {
+    return _buildSection(
+      icon: Icons.person_rounded,
+      title: 'Personal Info',
+      children: [
+        _buildInfoTile(Icons.cake_rounded, 'Age', '${_profile.age} years'),
+        _buildInfoTile(Icons.person_outline_rounded, 'Gender',
+            _profile.gender.label),
+        _buildInfoTile(
+            Icons.height_rounded, 'Height', '${_profile.height.round()} cm'),
+        _buildInfoTile(Icons.fitness_center_rounded, 'Weight',
+            '${_profile.weight.round()} kg'),
+        _buildInfoTile(Icons.directions_run_rounded, 'Activity',
+            _profile.activityLevel.label),
       ],
     );
   }
 
-  Widget _buildLabeledField(String label, TextEditingController controller,
+  Widget _buildInfoTile(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryGreenSurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppTheme.primaryGreen, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label,
+                style: GoogleFonts.poppins(
+                    fontSize: 13, color: AppTheme.textSecondary)),
+          ),
+          Text(value,
+              style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary)),
+        ],
+      ),
+    );
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  EDIT FORM
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Widget _buildEditForm() {
+    return Transform.translate(
+      offset: const Offset(0, -20),
+      child: _buildSection(
+        icon: Icons.edit_rounded,
+        title: 'Edit Your Details',
+        children: [
+          _buildEditField('Username', _nameController,
+              icon: Icons.person_rounded),
+          _buildEditField('Age', _ageController,
+              icon: Icons.cake_rounded, isNumeric: true),
+          _buildEditField('Height (cm)', _heightController,
+              icon: Icons.height_rounded, isNumeric: true),
+          _buildEditField('Weight (kg)', _weightController,
+              icon: Icons.fitness_center_rounded, isNumeric: true),
+          const SizedBox(height: 8),
+          _buildLabel('Gender'),
+          const SizedBox(height: 6),
+          Row(
+            children: Gender.values.map((g) {
+              final sel = _editGender == g;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _editGender = g),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: sel ? AppTheme.primaryGreen : AppTheme.softGrey,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(g.label,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: sel ? Colors.white : AppTheme.textSecondary,
+                          )),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 14),
+          _buildLabel('Activity Level'),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<ActivityLevel>(
+            value: _editActivityLevel,
+            style: GoogleFonts.poppins(
+                fontSize: 14, color: AppTheme.textPrimary),
+            decoration: const InputDecoration(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            items: ActivityLevel.values
+                .map((l) => DropdownMenuItem(
+                    value: l,
+                    child: Text(l.label,
+                        style: GoogleFonts.poppins(fontSize: 13))))
+                .toList(),
+            onChanged: (v) =>
+                setState(() => _editActivityLevel = v!),
+          ),
+          const SizedBox(height: 14),
+          _buildLabel('Fitness Goal'),
+          const SizedBox(height: 6),
+          ...FitnessGoal.values.map((goal) {
+            final sel = _editGoal == goal;
+            return GestureDetector(
+              onTap: () => setState(() => _editGoal = goal),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: sel
+                      ? _getGoalColor(goal).withValues(alpha: 0.08)
+                      : AppTheme.softGrey,
+                  border: Border.all(
+                    color: sel ? _getGoalColor(goal) : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(_getGoalIcon(goal),
+                        color: sel
+                            ? _getGoalColor(goal)
+                            : AppTheme.textSecondary,
+                        size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(goal.label,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: sel
+                                ? _getGoalColor(goal)
+                                : AppTheme.textPrimary,
+                          )),
+                    ),
+                    if (sel)
+                      Icon(Icons.check_circle_rounded,
+                          color: _getGoalColor(goal), size: 20),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditField(String label, TextEditingController ctrl,
       {IconData? icon, bool isNumeric = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary)),
-          const SizedBox(height: 6),
+          _buildLabel(label),
+          const SizedBox(height: 4),
           TextFormField(
-            controller: controller,
+            controller: ctrl,
             style: GoogleFonts.poppins(fontSize: 14),
             keyboardType:
                 isNumeric ? TextInputType.number : TextInputType.name,
             inputFormatters:
                 isNumeric ? [FilteringTextInputFormatter.digitsOnly] : null,
-            textCapitalization: isNumeric
-                ? TextCapitalization.none
-                : TextCapitalization.words,
+            textCapitalization:
+                isNumeric ? TextCapitalization.none : TextCapitalization.words,
             decoration: InputDecoration(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               prefixIcon: icon != null
-                  ? Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreenSurface,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(icon,
-                          color: AppTheme.primaryGreen, size: 18),
-                    )
+                  ? Icon(icon, color: AppTheme.primaryGreen, size: 18)
                   : null,
             ),
           ),
@@ -500,99 +531,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Calorie Info Card ──────────────────────────────────────────────────
-  Widget _buildCalorieInfoCard() {
-    return _buildSection(
-      icon: Icons.local_fire_department_rounded,
-      title: 'Calorie Information',
-      iconColor: AppTheme.accentOrange,
-      children: [
-        Row(
-          children: [
-            Expanded(
-                child: _buildCalorieStat(
-                    'BMR', '${_profile.bmr}', AppTheme.accentOrange)),
-            Container(width: 1, height: 40, color: AppTheme.softGrey),
-            Expanded(
-                child: _buildCalorieStat(
-                    'Maintenance',
-                    '${_profile.maintenanceCalories.round()}',
-                    AppTheme.primaryGreen)),
-            Container(width: 1, height: 40, color: AppTheme.softGrey),
-            Expanded(
-                child: _buildCalorieStat(
-                    'Target',
-                    '${_profile.targetCalories}',
-                    AppTheme.accentBlue)),
-          ],
-        ),
-      ],
-    );
+  Widget _buildLabel(String text) {
+    return Text(text,
+        style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textSecondary));
   }
 
-  Widget _buildCalorieStat(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-        Text('kcal/day',
-            style: GoogleFonts.poppins(
-                fontSize: 9, color: color.withValues(alpha: 0.7))),
-        const SizedBox(height: 2),
-        Text(label,
-            style: GoogleFonts.poppins(
-                fontSize: 10, color: AppTheme.textSecondary)),
-      ],
-    );
-  }
-
-  // ── Goal Card ──────────────────────────────────────────────────────────
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  GOAL CARD
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Widget _buildGoalCard() {
+    final color = _getGoalColor(_profile.fitnessGoal);
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        boxShadow: AppTheme.softShadow,
+        gradient: LinearGradient(
+          colors: [color.withValues(alpha: 0.08), color.withValues(alpha: 0.02)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _getGoalColor(_profile.fitnessGoal)
-                  .withValues(alpha: 0.1),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(_getGoalIcon(_profile.fitnessGoal),
-                color: _getGoalColor(_profile.fitnessGoal), size: 28),
+                color: color, size: 24),
           ),
-          const SizedBox(height: 10),
-          Text(
-            _profile.fitnessGoal.label,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: _getGoalColor(_profile.fitnessGoal),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Current Goal',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: AppTheme.textTertiary)),
+                Text(_profile.fitnessGoal.label,
+                    style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
+                Text(_profile.fitnessGoal.description,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: AppTheme.textTertiary)),
+              ],
             ),
-          ),
-          Text(
-            _profile.fitnessGoal.description,
-            style: GoogleFonts.poppins(
-                fontSize: 12, color: AppTheme.textTertiary),
           ),
         ],
       ),
     );
   }
 
-  // ── Health Conditions Card ─────────────────────────────────────────────
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  HEALTH CONDITIONS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Widget _buildHealthConditionsCard() {
     final conditions = _profile.healthConditions;
     final hasConditions = conditions.isNotEmpty &&
@@ -606,8 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       trailing: GestureDetector(
         onTap: _showEditHealthConditionsDialog,
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: AppTheme.primaryGreenSurface,
             borderRadius: BorderRadius.circular(20),
@@ -626,7 +625,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             runSpacing: 8,
             children: conditions
                 .where((c) => c != HealthCondition.none)
-                .map((c) => _buildConditionChip(c))
+                .map((c) => _buildHealthChip(c))
                 .toList(),
           )
         else
@@ -653,134 +652,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildConditionChip(HealthCondition condition) {
+  Widget _buildHealthChip(HealthCondition condition) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AppTheme.healthGreen.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: AppTheme.healthGreen.withValues(alpha: 0.25)),
+        border:
+            Border.all(color: AppTheme.healthGreen.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(condition.icon,
-              size: 14, color: AppTheme.healthGreen),
+          Icon(condition.icon, size: 14, color: AppTheme.healthGreen),
           const SizedBox(width: 6),
-          Text(
-            condition.label,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
-            ),
-          ),
+          Text(condition.label,
+              style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary)),
         ],
       ),
     );
   }
 
-  // ── Notification Settings Card ─────────────────────────────────────────
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  NOTIFICATION SETTINGS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Widget _buildNotificationSettingsCard() {
     return _buildSection(
       icon: Icons.notifications_active_rounded,
       title: 'Notifications',
       iconColor: AppTheme.accentBlue,
       children: [
-        _buildNotificationToggle(
-          icon: Icons.wb_sunny_rounded,
-          title: 'Meal Reminders',
-          subtitle: 'Daily reminders for each meal',
-          value: _notificationSettings.dailyReminders,
-          onChanged: (v) =>
-              _updateNotificationSetting(dailyReminders: v),
+        _buildToggleRow(
+          Icons.wb_sunny_rounded,
+          'Meal Reminders',
+          'Daily reminders for each meal',
+          _notificationSettings.dailyReminders,
+          (v) => _updateNotificationSetting(dailyReminders: v),
         ),
         if (_notificationSettings.dailyReminders) ...[
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text('Tap to change reminder times',
-                style: GoogleFonts.poppins(
-                    fontSize: 11, color: AppTheme.textTertiary)),
-          ),
-          _buildTimePicker(
-              icon: Icons.free_breakfast_rounded,
-              label: 'Breakfast',
-              hour: _notificationSettings.breakfastHour,
-              minute: _notificationSettings.breakfastMinute,
-              onTimePicked: (t) => _updateNotificationSetting(
-                  breakfastHour: t.hour,
-                  breakfastMinute: t.minute)),
-          const SizedBox(height: 6),
-          _buildTimePicker(
-              icon: Icons.apple_rounded,
-              label: 'Morning Snack',
-              hour: _notificationSettings.morningSnackHour,
-              minute: _notificationSettings.morningSnackMinute,
-              onTimePicked: (t) => _updateNotificationSetting(
-                  morningSnackHour: t.hour,
-                  morningSnackMinute: t.minute)),
-          const SizedBox(height: 6),
-          _buildTimePicker(
-              icon: Icons.lunch_dining_rounded,
-              label: 'Lunch',
-              hour: _notificationSettings.lunchHour,
-              minute: _notificationSettings.lunchMinute,
-              onTimePicked: (t) => _updateNotificationSetting(
-                  lunchHour: t.hour,
-                  lunchMinute: t.minute)),
-          const SizedBox(height: 6),
-          _buildTimePicker(
-              icon: Icons.icecream_rounded,
-              label: 'Evening Snack',
-              hour: _notificationSettings.eveningSnackHour,
-              minute: _notificationSettings.eveningSnackMinute,
-              onTimePicked: (t) => _updateNotificationSetting(
-                  eveningSnackHour: t.hour,
-                  eveningSnackMinute: t.minute)),
-          const SizedBox(height: 6),
-          _buildTimePicker(
-              icon: Icons.dinner_dining_rounded,
-              label: 'Dinner',
-              hour: _notificationSettings.dinnerHour,
-              minute: _notificationSettings.dinnerMinute,
-              onTimePicked: (t) => _updateNotificationSetting(
-                  dinnerHour: t.hour,
-                  dinnerMinute: t.minute)),
+          _buildTimeTile(Icons.free_breakfast_rounded, 'Breakfast',
+              _notificationSettings.breakfastHour,
+              _notificationSettings.breakfastMinute,
+              (t) => _updateNotificationSetting(
+                  breakfastHour: t.hour, breakfastMinute: t.minute)),
+          _buildTimeTile(Icons.apple_rounded, 'Morning Snack',
+              _notificationSettings.morningSnackHour,
+              _notificationSettings.morningSnackMinute,
+              (t) => _updateNotificationSetting(
+                  morningSnackHour: t.hour, morningSnackMinute: t.minute)),
+          _buildTimeTile(Icons.lunch_dining_rounded, 'Lunch',
+              _notificationSettings.lunchHour,
+              _notificationSettings.lunchMinute,
+              (t) => _updateNotificationSetting(
+                  lunchHour: t.hour, lunchMinute: t.minute)),
+          _buildTimeTile(Icons.icecream_rounded, 'Evening Snack',
+              _notificationSettings.eveningSnackHour,
+              _notificationSettings.eveningSnackMinute,
+              (t) => _updateNotificationSetting(
+                  eveningSnackHour: t.hour, eveningSnackMinute: t.minute)),
+          _buildTimeTile(Icons.dinner_dining_rounded, 'Dinner',
+              _notificationSettings.dinnerHour,
+              _notificationSettings.dinnerMinute,
+              (t) => _updateNotificationSetting(
+                  dinnerHour: t.hour, dinnerMinute: t.minute)),
         ],
         Divider(height: 20, color: AppTheme.softGrey),
-        _buildNotificationToggle(
-          icon: Icons.trending_up_rounded,
-          title: 'Calorie Limit Alerts',
-          subtitle: 'Alert when approaching daily target',
-          value: _notificationSettings.calorieLimitAlerts,
-          onChanged: (v) =>
-              _updateNotificationSetting(calorieLimitAlerts: v),
+        _buildToggleRow(
+          Icons.trending_up_rounded,
+          'Calorie Limit Alerts',
+          'Alert when approaching daily target',
+          _notificationSettings.calorieLimitAlerts,
+          (v) => _updateNotificationSetting(calorieLimitAlerts: v),
         ),
         Divider(height: 20, color: AppTheme.softGrey),
-        _buildNotificationToggle(
-          icon: Icons.health_and_safety_rounded,
-          title: 'Health Awareness',
-          subtitle: 'Alerts based on health conditions',
-          value: _notificationSettings.healthAlerts,
-          onChanged: (v) =>
-              _updateNotificationSetting(healthAlerts: v),
+        _buildToggleRow(
+          Icons.health_and_safety_rounded,
+          'Health Awareness',
+          'Alerts based on health conditions',
+          _notificationSettings.healthAlerts,
+          (v) => _updateNotificationSetting(healthAlerts: v),
         ),
-        const SizedBox(height: 8),
-        _buildDisclaimerRow(
-            'Notifications are for reminders and awareness only, not medical advice.'),
       ],
     );
   }
 
-  Widget _buildTimePicker({
-    required IconData icon,
-    required String label,
-    required int hour,
-    required int minute,
-    required ValueChanged<TimeOfDay> onTimePicked,
-  }) {
+  Widget _buildToggleRow(IconData icon, String title, String subtitle,
+      bool value, ValueChanged<bool> onChanged) {
+    return Row(
+      children: [
+        Icon(icon,
+            size: 20,
+            color: value ? AppTheme.accentBlue : AppTheme.textTertiary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: value
+                          ? AppTheme.textPrimary
+                          : AppTheme.textSecondary)),
+              Text(subtitle,
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, color: AppTheme.textTertiary)),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppTheme.primaryGreen,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeTile(IconData icon, String label, int hour, int minute,
+      ValueChanged<TimeOfDay> onPicked) {
     final time = TimeOfDay(hour: hour, minute: minute);
     return GestureDetector(
       onTap: () async {
@@ -796,11 +791,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: child!,
           ),
         );
-        if (picked != null) onTimePicked(picked);
+        if (picked != null) onPicked(picked);
       },
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppTheme.softGrey,
           borderRadius: BorderRadius.circular(12),
@@ -817,25 +812,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: AppTheme.textPrimary)),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppTheme.primaryGreenSurface,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(time.format(context),
-                      style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryGreen)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 16, color: AppTheme.primaryGreen),
-                ],
-              ),
+              child: Text(time.format(context),
+                  style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryGreen)),
             ),
           ],
         ),
@@ -843,55 +830,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildNotificationToggle({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Row(
-      children: [
-        Icon(icon,
-            size: 20,
-            color: value ? AppTheme.accentBlue : AppTheme.textTertiary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color:
-                          value ? AppTheme.textPrimary : AppTheme.textSecondary)),
-              Text(subtitle,
-                  style: GoogleFonts.poppins(
-                      fontSize: 11, color: AppTheme.textTertiary)),
-            ],
-          ),
-        ),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: AppTheme.primaryGreen,
-        ),
-      ],
-    );
-  }
-
-  // ── Actions Card ───────────────────────────────────────────────────────
-  Widget _buildActionsCard() {
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  ACTIONS (Logout)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Widget _buildActionsSection() {
     return GestureDetector(
       onTap: _confirmLogout,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppTheme.accentRed.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-          border: Border.all(
-              color: AppTheme.accentRed.withValues(alpha: 0.15)),
+          borderRadius: BorderRadius.circular(20),
+          border:
+              Border.all(color: AppTheme.accentRed.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -928,7 +879,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Reusable Section Container ─────────────────────────────────────────
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  REUSABLE SECTION CONTAINER
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Widget _buildSection({
     required IconData icon,
     required String title,
@@ -940,8 +893,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppTheme.white,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        boxShadow: AppTheme.softShadow,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,14 +919,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
+                child: Text(title,
+                    style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary)),
               ),
               if (trailing != null) trailing,
             ],
@@ -1002,7 +958,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Navigation ─────────────────────────────────────────────────────────
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  NAVIGATION
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   void _onNavTap(int index) {
     switch (index) {
       case 0:
@@ -1056,10 +1014,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
           ],
         ),
-        content: Text(
-          '$feature feature is under development!',
-          style: GoogleFonts.poppins(color: AppTheme.textSecondary),
-        ),
+        content: Text('$feature feature is under development!',
+            style: GoogleFonts.poppins(color: AppTheme.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1073,7 +1029,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Save Profile ───────────────────────────────────────────────────────
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  SAVE PROFILE
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Future<void> _saveProfile() async {
     final name = _nameController.text.trim();
     final age = int.tryParse(_ageController.text) ?? _profile.age;
@@ -1083,29 +1041,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         double.tryParse(_weightController.text) ?? _profile.weight;
 
     if (name.isEmpty || name.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Username must be at least 2 characters',
-                style: GoogleFonts.poppins()),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12))),
-      );
+      _showSnackBar('Username must be at least 2 characters', false);
       return;
     }
-
-    if (age < 1 ||
-        age > 120 ||
-        height < 50 ||
-        height > 300 ||
-        weight < 20 ||
-        weight > 500) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Please enter valid values',
-                style: GoogleFonts.poppins()),
-            behavior: SnackBarBehavior.floating),
-      );
+    if (age < 1 || age > 120 || height < 50 || height > 300 ||
+        weight < 20 || weight > 500) {
+      _showSnackBar('Please enter valid values', false);
       return;
     }
 
@@ -1144,26 +1085,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isEditing = false;
         }
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              success
-                  ? 'Profile updated successfully!'
-                  : 'Failed to update profile',
-              style: GoogleFonts.poppins()),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              success ? AppTheme.primaryGreen : AppTheme.accentRed,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-
+      _showSnackBar(
+          success ? 'Profile updated successfully!' : 'Failed to update',
+          success);
       if (success) widget.onProfileUpdated?.call();
     }
   }
 
+  void _showSnackBar(String msg, bool isSuccess) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: GoogleFonts.poppins()),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            isSuccess ? AppTheme.primaryGreen : AppTheme.accentRed,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  DIALOGS
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -1184,8 +1127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style:
-                    GoogleFonts.poppins(color: AppTheme.textSecondary)),
+                style: GoogleFonts.poppins(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1209,25 +1151,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditHealthConditionsDialog() {
-    final selectedConditions =
-        Set<HealthCondition>.from(_profile.healthConditions);
+    final sel = Set<HealthCondition>.from(_profile.healthConditions);
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          void toggleCondition(HealthCondition condition) {
+          void toggle(HealthCondition c) {
             setDialogState(() {
-              if (condition == HealthCondition.none) {
-                selectedConditions.clear();
-                selectedConditions.add(HealthCondition.none);
+              if (c == HealthCondition.none) {
+                sel.clear();
+                sel.add(HealthCondition.none);
               } else {
-                selectedConditions.remove(HealthCondition.none);
-                if (selectedConditions.contains(condition)) {
-                  selectedConditions.remove(condition);
-                } else {
-                  selectedConditions.add(condition);
-                }
+                sel.remove(HealthCondition.none);
+                sel.contains(c) ? sel.remove(c) : sel.add(c);
               }
             });
           }
@@ -1252,66 +1189,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Select any that apply:',
-                        style: GoogleFonts.poppins(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13)),
-                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: HealthCondition.values
                           .where((c) => c != HealthCondition.none)
-                          .map((condition) {
-                        final isSelected =
-                            selectedConditions.contains(condition);
+                          .map((c) {
+                        final on = sel.contains(c);
                         return FilterChip(
-                          selected: isSelected,
-                          label: Text(condition.label),
+                          selected: on,
+                          label: Text(c.label),
                           labelStyle: GoogleFonts.poppins(
-                            color: isSelected
+                            color: on
                                 ? AppTheme.healthGreen
                                 : AppTheme.textPrimary,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal,
+                            fontWeight:
+                                on ? FontWeight.w600 : FontWeight.normal,
                             fontSize: 12,
                           ),
                           selectedColor:
                               AppTheme.healthGreen.withValues(alpha: 0.15),
                           checkmarkColor: AppTheme.healthGreen,
-                          onSelected: (_) =>
-                              toggleCondition(condition),
+                          onSelected: (_) => toggle(c),
                         );
                       }).toList(),
                     ),
                     const Divider(height: 24),
                     FilterChip(
-                      selected: selectedConditions
-                          .contains(HealthCondition.none),
-                      label: Text('None of the above'),
-                      labelStyle: GoogleFonts.poppins(
-                        color: selectedConditions
-                                .contains(HealthCondition.none)
-                            ? AppTheme.primaryGreen
-                            : AppTheme.textPrimary,
-                        fontWeight: selectedConditions
-                                .contains(HealthCondition.none)
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        fontSize: 12,
-                      ),
-                      avatar: Icon(Icons.check_circle_outline,
-                          size: 16,
-                          color: selectedConditions
-                                  .contains(HealthCondition.none)
-                              ? AppTheme.primaryGreen
-                              : AppTheme.textSecondary),
+                      selected: sel.contains(HealthCondition.none),
+                      label: const Text('None of the above'),
+                      labelStyle: GoogleFonts.poppins(fontSize: 12),
                       selectedColor:
                           AppTheme.primaryGreen.withValues(alpha: 0.15),
                       checkmarkColor: AppTheme.primaryGreen,
-                      onSelected: (_) =>
-                          toggleCondition(HealthCondition.none),
+                      onSelected: (_) => toggle(HealthCondition.none),
                     ),
                   ],
                 ),
@@ -1321,22 +1232,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text('Cancel',
-                    style: GoogleFonts.poppins(
-                        color: AppTheme.textSecondary)),
+                    style:
+                        GoogleFonts.poppins(color: AppTheme.textSecondary)),
               ),
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  await _updateHealthConditions(
-                      selectedConditions.toList());
+                  await _updateHealthConditions(sel.toList());
                 },
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text('Save',
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600)),
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
               ),
             ],
           );
@@ -1347,41 +1256,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _updateHealthConditions(
       List<HealthCondition> conditions) async {
-    if (conditions.isEmpty) {
-      conditions = [HealthCondition.none];
-    }
+    if (conditions.isEmpty) conditions = [HealthCondition.none];
 
     final success = await FirestoreService.updateUserProfile({
-      'healthConditions':
-          conditions.map((c) => c.index).toList(),
+      'healthConditions': conditions.map((c) => c.index).toList(),
     });
 
     if (mounted) {
       if (success) {
-        final updatedProfile =
-            await FirestoreService.getUserProfile();
-        if (updatedProfile != null && mounted) {
-          setState(() => _profile = updatedProfile);
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Health profile updated',
-                style: GoogleFonts.poppins()),
-            backgroundColor: AppTheme.primaryGreen,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        final updated = await FirestoreService.getUserProfile();
+        if (updated != null && mounted) setState(() => _profile = updated);
+        _showSnackBar('Health profile updated', true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update health profile',
-                style: GoogleFonts.poppins()),
-            backgroundColor: AppTheme.accentRed,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnackBar('Failed to update health profile', false);
       }
     }
   }
@@ -1401,7 +1288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     int? dinnerHour,
     int? dinnerMinute,
   }) async {
-    final newSettings = _notificationSettings.copyWith(
+    final s = _notificationSettings.copyWith(
       dailyReminders: dailyReminders,
       calorieLimitAlerts: calorieLimitAlerts,
       healthAlerts: healthAlerts,
@@ -1416,44 +1303,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       dinnerHour: dinnerHour,
       dinnerMinute: dinnerMinute,
     );
-
-    setState(() => _notificationSettings = newSettings);
-    await NotificationService.updateSettings(newSettings);
-
+    setState(() => _notificationSettings = s);
+    await NotificationService.updateSettings(s);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Notification settings updated',
-              style: GoogleFonts.poppins()),
+          content: Text('Settings updated', style: GoogleFonts.poppins()),
           backgroundColor: AppTheme.primaryGreen,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
   }
 
-  IconData _getGoalIcon(FitnessGoal goal) {
-    switch (goal) {
-      case FitnessGoal.weightLoss:
-        return Icons.trending_down_rounded;
-      case FitnessGoal.maintenance:
-        return Icons.balance_rounded;
-      case FitnessGoal.weightGain:
-        return Icons.trending_up_rounded;
-    }
-  }
+  // ── Helpers ────────────────────────────────────────────────────────
+  IconData _getGoalIcon(FitnessGoal goal) => switch (goal) {
+        FitnessGoal.weightLoss => Icons.trending_down_rounded,
+        FitnessGoal.maintenance => Icons.balance_rounded,
+        FitnessGoal.weightGain => Icons.trending_up_rounded,
+      };
 
-  Color _getGoalColor(FitnessGoal goal) {
-    switch (goal) {
-      case FitnessGoal.weightLoss:
-        return AppTheme.accentOrange;
-      case FitnessGoal.maintenance:
-        return AppTheme.primaryGreen;
-      case FitnessGoal.weightGain:
-        return AppTheme.accentBlue;
-    }
-  }
+  Color _getGoalColor(FitnessGoal goal) => switch (goal) {
+        FitnessGoal.weightLoss => AppTheme.accentOrange,
+        FitnessGoal.maintenance => AppTheme.primaryGreen,
+        FitnessGoal.weightGain => AppTheme.accentBlue,
+      };
 }

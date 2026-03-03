@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
 import 'screens/user_details_screen.dart';
 import 'screens/home_dashboard.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/onboarding/splash_screen.dart';
 import 'services/firestore_service.dart';
 import 'services/notification_service.dart';
 
@@ -12,20 +14,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-
-
-
-
-
   await NotificationService.initialize();
   await NotificationService.requestPermissions();
   await NotificationService.scheduleDailyReminders();
 
-  runApp(const CaloriesTrackerApp());
+  // Check if onboarding has been completed
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
+  runApp(CaloriesTrackerApp(onboardingCompleted: onboardingCompleted));
 }
 
 class CaloriesTrackerApp extends StatelessWidget {
-  const CaloriesTrackerApp({super.key});
+  final bool onboardingCompleted;
+  const CaloriesTrackerApp({super.key, required this.onboardingCompleted});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +35,9 @@ class CaloriesTrackerApp extends StatelessWidget {
       title: 'Calories Tracker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const AuthWrapper(),
+      home: onboardingCompleted
+          ? const AuthWrapper()
+          : const SplashScreen(),
     );
   }
 }
