@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
-import '../../main.dart';
+import '../auth/signup_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -95,7 +95,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const AuthWrapper(),
+            const SignUpScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -145,7 +145,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: Text(
-                          'Login',
+                          'Sign Up',
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -431,50 +431,135 @@ class _NextButtonState extends State<_NextButton>
   }
 }
 
-// ─── Mini Apple Logo ────────────────────────────────────────────────────────
+// ─── LifeFit Logo ───────────────────────────────────────────────────────────
 
 class _MiniAppleLogo extends StatelessWidget {
   const _MiniAppleLogo();
 
   @override
   Widget build(BuildContext context) {
+    return const LifeFitLogo(size: 36, color: AppTheme.primaryGreen);
+  }
+}
+
+/// A custom-drawn LifeFit logo — apple-heart with pulse line + leaf.
+/// Works on any background (no image dependency).
+class LifeFitLogo extends StatelessWidget {
+  final double size;
+  final Color color;
+  final Color? pulseColor;
+  const LifeFitLogo({
+    super.key,
+    required this.size,
+    this.color = Colors.white,
+    this.pulseColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return CustomPaint(
-      size: const Size(28, 28),
-      painter: _MiniAppleLogoPainter(),
+      size: Size(size, size),
+      painter: _LifeFitLogoPainter(
+        color: color,
+        pulseColor: pulseColor,
+      ),
     );
   }
 }
 
-class _MiniAppleLogoPainter extends CustomPainter {
+class _LifeFitLogoPainter extends CustomPainter {
+  final Color color;
+  final Color? pulseColor;
+  _LifeFitLogoPainter({required this.color, this.pulseColor});
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.primaryGreen
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.065
-      ..strokeCap = StrokeCap.round;
-
     final w = size.width;
     final h = size.height;
 
-    final bodyPath = Path();
-    bodyPath.moveTo(w * 0.5, h * 0.25);
-    bodyPath.cubicTo(
-        w * 0.15, h * 0.25, w * 0.08, h * 0.55, w * 0.2, h * 0.78);
-    bodyPath.cubicTo(
-        w * 0.28, h * 0.92, w * 0.38, h * 0.95, w * 0.5, h * 0.95);
-    bodyPath.cubicTo(
-        w * 0.62, h * 0.95, w * 0.72, h * 0.92, w * 0.8, h * 0.78);
-    bodyPath.cubicTo(
-        w * 0.92, h * 0.55, w * 0.85, h * 0.25, w * 0.5, h * 0.25);
-    bodyPath.close();
-    canvas.drawPath(bodyPath, paint);
+    // ── Heart / apple body (filled) ──
+    final heartPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
 
+    final heartPath = Path();
+    // Bottom point
+    heartPath.moveTo(w * 0.5, h * 0.88);
+    // Left side curve
+    heartPath.cubicTo(
+      w * 0.12, h * 0.68,
+      w * 0.02, h * 0.38,
+      w * 0.22, h * 0.28,
+    );
+    // Top-left bump
+    heartPath.cubicTo(
+      w * 0.35, h * 0.20,
+      w * 0.45, h * 0.24,
+      w * 0.5, h * 0.35,
+    );
+    // Top-right bump
+    heartPath.cubicTo(
+      w * 0.55, h * 0.24,
+      w * 0.65, h * 0.20,
+      w * 0.78, h * 0.28,
+    );
+    // Right side curve
+    heartPath.cubicTo(
+      w * 0.98, h * 0.38,
+      w * 0.88, h * 0.68,
+      w * 0.5, h * 0.88,
+    );
+    heartPath.close();
+    canvas.drawPath(heartPath, heartPaint);
+
+    // ── Pulse / heartbeat line ──
+    // Auto-contrast: green on white heart, white on green heart
+    final resolvedPulseColor = pulseColor ??
+        (color == Colors.white ? AppTheme.primaryGreen : Colors.white);
+
+    final pulsePaint = Paint()
+      ..color = resolvedPulseColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.05
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final pulsePath = Path();
+    pulsePath.moveTo(w * 0.16, h * 0.50);
+    pulsePath.lineTo(w * 0.30, h * 0.50);
+    pulsePath.lineTo(w * 0.37, h * 0.38);
+    pulsePath.lineTo(w * 0.46, h * 0.62);
+    pulsePath.lineTo(w * 0.54, h * 0.42);
+    pulsePath.lineTo(w * 0.62, h * 0.55);
+    pulsePath.lineTo(w * 0.70, h * 0.50);
+    pulsePath.lineTo(w * 0.84, h * 0.50);
+    canvas.drawPath(pulsePath, pulsePaint);
+
+    // ── Leaf at top-center (no stem) ──
+    final leafPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Leaf shape — large, fully covers top-right bump
     final leafPath = Path();
-    leafPath.moveTo(w * 0.5, h * 0.25);
-    leafPath.cubicTo(
-        w * 0.5, h * 0.12, w * 0.6, h * 0.05, w * 0.68, h * 0.05);
-    canvas.drawPath(leafPath, paint);
+    leafPath.moveTo(w * 0.46, h * 0.32);
+    leafPath.quadraticBezierTo(w * 0.62, h * 0.02, w * 0.88, h * 0.10);
+    leafPath.quadraticBezierTo(w * 0.82, h * 0.36, w * 0.46, h * 0.32);
+    leafPath.close();
+    canvas.drawPath(leafPath, leafPaint);
+
+    // Leaf vein
+    final veinPaint = Paint()
+      ..color = resolvedPulseColor.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.02
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(w * 0.53, h * 0.26),
+      Offset(w * 0.70, h * 0.15),
+      veinPaint,
+    );
   }
 
   @override

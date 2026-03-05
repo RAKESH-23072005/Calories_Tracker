@@ -227,7 +227,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     final email = AuthService.currentUser?.email ?? 'User';
     final name =
         _profile.name.isNotEmpty ? _profile.name : email.split('@')[0];
-    final goalColor = _getGoalColor(_profile.fitnessGoal);
 
     return Container(
       width: double.infinity,

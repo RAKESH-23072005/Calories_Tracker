@@ -684,14 +684,25 @@
         },
         {
             "id": "61",
-            "name": "Veg & Egg Puffs",
-            "calories": 250,
-            "protein": 7,
-            "fat": 14,
-            "carbs": 25,
+            "name": "Veg Puffs",
+            "calories": 210,
+            "protein": 4,
+            "fat": 12,
+            "carbs": 22,
             "category": "Snacks",
             "servingSize": "1 piece (~70g)",
             "icon": "grain"
+        },
+        {
+            "id": "78",
+            "name": "Egg Puffs",
+            "calories": 260,
+            "protein": 8,
+            "fat": 15,
+            "carbs": 24,
+            "category": "Snacks",
+            "servingSize": "1 piece (~70g)",
+            "icon": "egg"
         },
         {
             "id": "62",

@@ -12,14 +12,15 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  await NotificationService.initialize();
-  await NotificationService.requestPermissions();
-  await NotificationService.scheduleDailyReminders();
+  // Run Firebase and SharedPreferences init in parallel
+  // (they are independent — no need to block sequentially)
+  final results = await Future.wait([
+    Firebase.initializeApp(),
+    SharedPreferences.getInstance(),
+  ]);
 
-  // Check if onboarding has been completed
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = results[1] as SharedPreferences;
   final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
 
   runApp(CaloriesTrackerApp(onboardingCompleted: onboardingCompleted));
@@ -32,7 +33,7 @@ class CaloriesTrackerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Calories Tracker',
+      title: 'LifeFit',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: onboardingCompleted
@@ -101,6 +102,11 @@ class _ProfileCheckerState extends State<ProfileChecker> {
           _hasProfile = profile != null;
           _isLoading = false;
         });
+
+        // Initialize notifications in background after profile loads
+        if (profile != null) {
+          _initNotificationsInBackground();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -112,15 +118,13 @@ class _ProfileCheckerState extends State<ProfileChecker> {
     }
   }
 
-  Future<void> _scheduleNotifications() async {
-    // Request notification permissions
-    await NotificationService.requestPermissions();
-    
-    // Schedule daily meal reminders
-    await NotificationService.scheduleDailyReminders();
-    
-    // Schedule inactivity reminder
-    await NotificationService.scheduleInactivityReminder();
+  /// Fire-and-forget notification setup — doesn't block UI rendering.
+  void _initNotificationsInBackground() {
+    NotificationService.initialize().then((_) async {
+      await NotificationService.requestPermissions();
+      await NotificationService.scheduleDailyReminders();
+      await NotificationService.scheduleInactivityReminder();
+    });
   }
 
   @override
@@ -158,8 +162,6 @@ class _ProfileCheckerState extends State<ProfileChecker> {
 
     // User has profile - go to dashboard
     if (_hasProfile && _profile != null) {
-      // Schedule notifications after profile is loaded
-      _scheduleNotifications();
       return HomeDashboard(
         targetCalories: _profile!.targetCalories,
         bmr: _profile!.bmr,

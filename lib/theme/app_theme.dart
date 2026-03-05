@@ -58,50 +58,53 @@ class AppTheme {
     ),
   ];
 
-  // ── Text Styles (Poppins) ────────────────────────────────────────────
-  static TextStyle get headingLarge => GoogleFonts.poppins(
+  // ── Cached Poppins base (avoids repeated GoogleFonts lookups) ───────
+  static final TextStyle _poppinsBase = GoogleFonts.poppins();
+
+  // ── Text Styles (derived from cached base) ────────────────────────
+  static TextStyle get headingLarge => _poppinsBase.copyWith(
     fontSize: 28,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
-  static TextStyle get headingMedium => GoogleFonts.poppins(
+  static TextStyle get headingMedium => _poppinsBase.copyWith(
     fontSize: 22,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
 
-  static TextStyle get headingSmall => GoogleFonts.poppins(
+  static TextStyle get headingSmall => _poppinsBase.copyWith(
     fontSize: 18,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
 
-  static TextStyle get bodyLarge => GoogleFonts.poppins(
+  static TextStyle get bodyLarge => _poppinsBase.copyWith(
     fontSize: 16,
     fontWeight: FontWeight.w400,
     color: textPrimary,
   );
 
-  static TextStyle get bodyMedium => GoogleFonts.poppins(
+  static TextStyle get bodyMedium => _poppinsBase.copyWith(
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: textSecondary,
   );
 
-  static TextStyle get bodySmall => GoogleFonts.poppins(
+  static TextStyle get bodySmall => _poppinsBase.copyWith(
     fontSize: 12,
     fontWeight: FontWeight.w400,
     color: textTertiary,
   );
 
-  static TextStyle get labelBold => GoogleFonts.poppins(
+  static TextStyle get labelBold => _poppinsBase.copyWith(
     fontSize: 14,
     fontWeight: FontWeight.w600,
     color: textPrimary,
   );
 
-  static TextStyle get caption => GoogleFonts.poppins(
+  static TextStyle get caption => _poppinsBase.copyWith(
     fontSize: 11,
     fontWeight: FontWeight.w400,
     color: textTertiary,

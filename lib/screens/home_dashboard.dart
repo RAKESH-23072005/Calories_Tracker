@@ -70,10 +70,10 @@ class _HomeDashboardState extends State<HomeDashboard>
         });
         _animController.forward(from: 0);
 
-        final consumed = log?.totalCalories ?? 0;
+        final consumed = log.totalCalories;
         if (consumed > widget.targetCalories * 0.9 &&
             widget.targetCalories > 0) {
-          NotificationService.showCalorieLimitAlert(
+          await NotificationService.showCalorieLimitAlert(
               consumed, widget.targetCalories);
         }
       }

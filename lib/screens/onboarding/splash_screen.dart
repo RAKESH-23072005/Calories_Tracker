@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../theme/app_theme.dart';
 import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -212,7 +211,7 @@ class _SplashScreenState extends State<SplashScreen>
                             shape: BoxShape.circle,
                           ),
                           child: const Center(
-                            child: _AppleLogo(size: 70),
+                            child: LifeFitLogo(size: 70, color: Colors.white),
                           ),
                         ),
                       ),
@@ -247,59 +246,6 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}
-
-/// Custom apple logo icon using CustomPaint
-class _AppleLogo extends StatelessWidget {
-  final double size;
-  const _AppleLogo({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _AppleLogoPainter(),
-    );
-  }
-}
-
-class _AppleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.045
-      ..strokeCap = StrokeCap.round;
-
-    final w = size.width;
-    final h = size.height;
-
-    // Apple body
-    final bodyPath = Path();
-    bodyPath.moveTo(w * 0.5, h * 0.25);
-    bodyPath.cubicTo(w * 0.15, h * 0.25, w * 0.08, h * 0.55, w * 0.2, h * 0.78);
-    bodyPath.cubicTo(w * 0.28, h * 0.92, w * 0.38, h * 0.95, w * 0.5, h * 0.95);
-    bodyPath.cubicTo(w * 0.62, h * 0.95, w * 0.72, h * 0.92, w * 0.8, h * 0.78);
-    bodyPath.cubicTo(w * 0.92, h * 0.55, w * 0.85, h * 0.25, w * 0.5, h * 0.25);
-    bodyPath.close();
-    canvas.drawPath(bodyPath, paint);
-
-    // Leaf
-    final leafPath = Path();
-    leafPath.moveTo(w * 0.5, h * 0.25);
-    leafPath.cubicTo(w * 0.5, h * 0.12, w * 0.6, h * 0.05, w * 0.68, h * 0.05);
-    canvas.drawPath(leafPath, paint);
-
-    // Small leaf curve
-    final leafCurve = Path();
-    leafCurve.moveTo(w * 0.55, h * 0.18);
-    leafCurve.cubicTo(w * 0.58, h * 0.10, w * 0.65, h * 0.08, w * 0.68, h * 0.05);
-    canvas.drawPath(leafCurve, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Decorative arc painter for splash background

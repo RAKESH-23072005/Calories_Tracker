@@ -104,7 +104,6 @@ class _FoodLoggingScreenState extends State<FoodLoggingScreen>
   }
 
   DailySummary get _dailySummary => DailySummary(allFoods: _localFoods);
-  List<LoggedFood> get _loggedFoods => _localFoods;
 
   int get _remainingCalories =>
       widget.targetCalories - _dailySummary.totalCalories;

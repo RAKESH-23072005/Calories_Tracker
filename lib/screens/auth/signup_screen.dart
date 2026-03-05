@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../main.dart';
+import 'login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -49,7 +51,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!result.isSuccess) {
       setState(() => _errorMessage = result.errorMessage);
     } else {
-      if (mounted) Navigator.pop(context);
+      // Signup successful — navigate to AuthWrapper (clears entire nav stack)
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthWrapper()),
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -373,7 +382,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                      onTap: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const LoginScreen()),
+                      ),
                       child: Text(
                         'Login',
                         style: GoogleFonts.poppins(

@@ -154,27 +154,45 @@ class FirestoreService {
       _cachedProfile = profile;
       return true;
     } catch (e) {
-      print('Error saving user profile: $e');
+      debugPrint('Error saving user profile: $e');
       return false;
     }
   }
 
-  // Get user profile
+  // Get user profile — tries Firestore's local cache first (instant),
+  // then falls back to server. This leverages Firestore's built-in
+  // offline persistence which is enabled by default on mobile.
   static Future<FirestoreUserProfile?> getUserProfile() async {
     if (_userId == null) return null;
 
-    // Return cached profile if available
+    // Return in-memory cache if available
     if (_cachedProfile != null) return _cachedProfile;
 
+    // Try Firestore's local cache first (instant, no network)
     try {
-      final doc = await _usersCollection.doc(_userId).get();
+      final doc = await _usersCollection.doc(_userId).get(
+        const GetOptions(source: Source.cache),
+      );
+      if (doc.exists && doc.data() != null) {
+        _cachedProfile = FirestoreUserProfile.fromFirestore(doc.data()!);
+        return _cachedProfile;
+      }
+    } catch (_) {
+      // Cache miss — fall through to server
+    }
+
+    // Fall back to server
+    try {
+      final doc = await _usersCollection.doc(_userId).get(
+        const GetOptions(source: Source.server),
+      );
       if (doc.exists && doc.data() != null) {
         _cachedProfile = FirestoreUserProfile.fromFirestore(doc.data()!);
         return _cachedProfile;
       }
       return null;
     } catch (e) {
-      print('Error getting user profile: $e');
+      debugPrint('Error getting user profile: $e');
       return null;
     }
   }
@@ -201,7 +219,7 @@ class FirestoreService {
       _cachedProfile = null; // Clear cache to force refresh
       return true;
     } catch (e) {
-      print('Error updating user profile: $e');
+      debugPrint('Error updating user profile: $e');
       return false;
     }
   }
@@ -215,7 +233,7 @@ class FirestoreService {
       _cachedProfile = null;
       return true;
     } catch (e) {
-      print('Error deleting user profile: $e');
+      debugPrint('Error deleting user profile: $e');
       return false;
     }
   }

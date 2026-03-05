@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../main.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -46,6 +47,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!result.isSuccess) {
       setState(() => _errorMessage = result.errorMessage);
+    } else {
+      // Login successful — navigate to AuthWrapper which handles profile check
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthWrapper()),
+          (route) => false,
+        );
+      }
     }
   }
 
