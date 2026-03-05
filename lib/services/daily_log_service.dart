@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/food_model.dart';
 
 class MealLog {
@@ -219,7 +220,7 @@ class DailyLogService {
         return _cachedLog!;
       }
     } catch (e) {
-      print('Error getting daily log: $e');
+      debugPrint('Error getting daily log: $e');
     }
 
     // Return empty log if not exists
@@ -238,7 +239,7 @@ class DailyLogService {
       _cachedDate = log.date;
       return true;
     } catch (e) {
-      print('Error saving daily log: $e');
+      debugPrint('Error saving daily log: $e');
       return false;
     }
   }
@@ -253,7 +254,7 @@ class DailyLogService {
       final updatedLog = _updateLogWithMeal(log, mealType, foods);
       return await saveDailyLog(updatedLog);
     } catch (e) {
-      print('Error adding food: $e');
+      debugPrint('Error adding food: $e');
       return false;
     }
   }
@@ -270,7 +271,7 @@ class DailyLogService {
       final updatedLog = _updateLogWithMeal(log, mealType, foods);
       return await saveDailyLog(updatedLog);
     } catch (e) {
-      print('Error removing food: $e');
+      debugPrint('Error removing food: $e');
       return false;
     }
   }
@@ -288,10 +289,10 @@ class DailyLogService {
   static DailyLogData _updateLogWithMeal(DailyLogData log, String mealType, List<LoggedFoodData> foods) {
     final mealLog = MealLog(
       foods: foods,
-      totalCalories: foods.fold(0, (sum, f) => sum + f.calories),
-      totalProtein: foods.fold(0.0, (sum, f) => sum + f.protein),
-      totalFat: foods.fold(0.0, (sum, f) => sum + f.fat),
-      totalCarbs: foods.fold(0.0, (sum, f) => sum + f.carbs),
+      totalCalories: foods.fold(0, (s, f) => s + f.calories),
+      totalProtein: foods.fold(0.0, (s, f) => s + f.protein),
+      totalFat: foods.fold(0.0, (s, f) => s + f.fat),
+      totalCarbs: foods.fold(0.0, (s, f) => s + f.carbs),
     );
 
     MealLog breakfast = log.breakfast;

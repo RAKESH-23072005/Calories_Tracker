@@ -1,28 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
 import 'screens/user_details_screen.dart';
 import 'screens/home_dashboard.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/onboarding/splash_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(const CaloriesTrackerApp());
+
+  // Run Firebase and SharedPreferences init in parallel
+  // (they are independent — no need to block sequentially)
+  final results = await Future.wait([
+    Firebase.initializeApp(),
+    SharedPreferences.getInstance(),
+  ]);
+
+  final prefs = results[1] as SharedPreferences;
+  final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
+  runApp(CaloriesTrackerApp(onboardingCompleted: onboardingCompleted));
 }
 
 class CaloriesTrackerApp extends StatelessWidget {
-  const CaloriesTrackerApp({super.key});
+  final bool onboardingCompleted;
+  const CaloriesTrackerApp({super.key, required this.onboardingCompleted});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Calories Tracker',
+      title: 'LifeFit',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const AuthWrapper(),
+      home: onboardingCompleted
+          ? const AuthWrapper()
+          : const SplashScreen(),
     );
   }
 }
@@ -86,6 +102,11 @@ class _ProfileCheckerState extends State<ProfileChecker> {
           _hasProfile = profile != null;
           _isLoading = false;
         });
+
+        // Initialize notifications in background after profile loads
+        if (profile != null) {
+          _initNotificationsInBackground();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -95,6 +116,15 @@ class _ProfileCheckerState extends State<ProfileChecker> {
         });
       }
     }
+  }
+
+  /// Fire-and-forget notification setup — doesn't block UI rendering.
+  void _initNotificationsInBackground() {
+    NotificationService.initialize().then((_) async {
+      await NotificationService.requestPermissions();
+      await NotificationService.scheduleDailyReminders();
+      await NotificationService.scheduleInactivityReminder();
+    });
   }
 
   @override

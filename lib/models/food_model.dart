@@ -85,6 +85,10 @@ class FoodItem {
         return Icons.local_bar;
       case 'shake':
         return Icons.blender;
+      case 'dessert':
+        return Icons.cake_outlined;
+      case 'oil':
+        return Icons.water_drop_outlined;
       default:
         return Icons.restaurant;
     }

@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../utils/bmr_calculator.dart';
+import '../utils/macro_calculator.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/daily_log_service.dart';
+import '../services/notification_service.dart';
+import '../widgets/bottom_nav_bar.dart';
 import 'food_logging_screen.dart';
 import 'profile_screen.dart';
+import 'weekly_analytics_screen.dart';
+import 'dart:math' as math;
 
 class HomeDashboard extends StatefulWidget {
   final int targetCalories;
@@ -26,14 +31,32 @@ class HomeDashboard extends StatefulWidget {
   State<HomeDashboard> createState() => _HomeDashboardState();
 }
 
-class _HomeDashboardState extends State<HomeDashboard> {
+class _HomeDashboardState extends State<HomeDashboard>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   DailyLogData? _dailyLog;
+  int _currentNavIndex = 0;
+  late AnimationController _animController;
+  late Animation<double> _progressAnim;
 
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _progressAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutCubic,
+    );
     _loadDailyLog();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadDailyLog() async {
@@ -45,6 +68,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
           _dailyLog = log;
           _isLoading = false;
         });
+        _animController.forward(from: 0);
+
+        final consumed = log.totalCalories;
+        if (consumed > widget.targetCalories * 0.9 &&
+            widget.targetCalories > 0) {
+          await NotificationService.showCalorieLimitAlert(
+              consumed, widget.targetCalories);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -55,385 +86,268 @@ class _HomeDashboardState extends State<HomeDashboard> {
 
   int get _consumedCalories => _dailyLog?.totalCalories ?? 0;
   int get _remainingCalories => widget.targetCalories - _consumedCalories;
-  double get _progress => widget.targetCalories > 0 
-      ? _consumedCalories / widget.targetCalories 
-      : 0;
+  double get _progress =>
+      widget.targetCalories > 0
+          ? _consumedCalories / widget.targetCalories
+          : 0;
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF4CAF50),
-              Color(0xFF81C784),
-              Color(0xFFF5F5F5),
-            ],
-            stops: [0.0, 0.2, 0.35],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildAppBar(),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                    : RefreshIndicator(
-                        onRefresh: _loadDailyLog,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _buildCalorieOverviewCard(),
-                              const SizedBox(height: 16),
-                              _buildMacronutrientsCard(),
-                              const SizedBox(height: 16),
-                              _buildMealBreakdownCard(),
-                              const SizedBox(height: 80),
-                            ],
-                          ),
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _navigateToFoodLogging,
-        icon: const Icon(Icons.add),
-        label: const Text('Log Food'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    final email = AuthService.currentUser?.email ?? 'User';
-    final emailName = email.split('@')[0];
-    // Use Firestore profile name if available, otherwise fall back to email
-    final profile = FirestoreService.cachedProfile;
-    final name = (profile != null && profile.name.isNotEmpty) ? profile.name : emailName;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: _navigateToProfile,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 2),
-              ),
-              child: CircleAvatar(
-                backgroundColor: Colors.white24,
-                radius: 22,
-                child: Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Welcome back!',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Notification or settings icon (optional placeholder)
-          IconButton(
-            onPressed: _navigateToProfile,
-            icon: const Icon(Icons.settings, color: Colors.white70),
-            tooltip: 'Settings',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalorieOverviewCard() {
-    final progressColor = _progress > 1.0 ? AppTheme.accentRed : AppTheme.primaryGreen;
-
-    return Card(
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 130,
-                  height: 130,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 130,
-                        height: 130,
-                        child: CircularProgressIndicator(
-                          value: _progress.clamp(0.0, 1.0),
-                          strokeWidth: 12,
-                          backgroundColor: AppTheme.mediumGrey,
-                          valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${_remainingCalories.abs()}',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: _remainingCalories < 0 ? AppTheme.accentRed : progressColor,
-                            ),
-                          ),
-                          Text(
-                            _remainingCalories >= 0 ? 'kcal left' : 'kcal over',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: _remainingCalories < 0 ? AppTheme.accentRed : AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
+      backgroundColor: AppTheme.background,
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(
+                child:
+                    CircularProgressIndicator(color: AppTheme.primaryGreen))
+            : RefreshIndicator(
+                onRefresh: _loadDailyLog,
+                color: AppTheme.primaryGreen,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildCalorieStat('Target', '${widget.targetCalories}', Icons.flag_outlined, AppTheme.primaryGreen),
-                      const SizedBox(height: 12),
-                      _buildCalorieStat('Consumed', '$_consumedCalories', Icons.restaurant, AppTheme.accentOrange),
-                      const SizedBox(height: 12),
-                      _buildCalorieStat('BMR', '${widget.bmr}', Icons.local_fire_department, AppTheme.accentBlue),
+                      _buildGreetingHeader(),
+                      const SizedBox(height: 24),
+                      _buildCalorieRingCard(),
+                      const SizedBox(height: 16),
+                      _buildMacroStatsRow(),
+                      const SizedBox(height: 24),
+                      _buildTodaysMealSection(),
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: _getGoalColor().withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(_getGoalIcon(), color: _getGoalColor(), size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.goal.label,
-                    style: TextStyle(color: _getGoalColor(), fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentNavIndex,
+        onTap: _onNavTap,
+        onAddPressed: _navigateToFoodLogging,
       ),
     );
   }
 
-  Widget _buildCalorieStat(String label, String value, IconData icon, Color color) {
+  // ── Greeting Header ──────────────────────────────────────────────────
+  Widget _buildGreetingHeader() {
+    final email = AuthService.currentUser?.email ?? 'User';
+    final emailName = email.split('@')[0];
+    final profile = FirestoreService.cachedProfile;
+    final name = (profile != null && profile.name.isNotEmpty)
+        ? profile.name
+        : emailName;
+    final now = DateTime.now();
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final dateStr = '${months[now.month - 1]} ${now.day}, ${now.year}';
+
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(6),
+        // Avatar
+        GestureDetector(
+          onTap: _navigateToProfile,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryGreenSurface,
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: AppTheme.primaryGreen.withValues(alpha: 0.3),
+                  width: 2),
+            ),
+            child: Center(
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryGreen,
+                ),
+              ),
+            ),
           ),
-          child: Icon(icon, color: color, size: 16),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
+        // Greeting text
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-              Text('$value kcal', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+              Row(
+                children: [
+                  Text(
+                    '$_greeting 👋',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                dateStr,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
             ],
           ),
         ),
+        // Settings icon
+        GestureDetector(
+          onTap: _navigateToProfile,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.softGrey,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.settings_outlined,
+                color: AppTheme.textSecondary, size: 22),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildMacronutrientsCard() {
-    final protein = _dailyLog?.totalProtein ?? 0;
-    final fat = _dailyLog?.totalFat ?? 0;
-    final carbs = _dailyLog?.totalCarbs ?? 0;
-    final total = protein + fat + carbs;
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.pie_chart, color: AppTheme.primaryGreen, size: 22),
-                SizedBox(width: 8),
-                Text('Macronutrients', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                SizedBox(
-                  width: 100,
-                  height: 100,
-                  child: total > 0
-                      ? PieChart(
-                          PieChartData(
-                            sectionsSpace: 2,
-                            centerSpaceRadius: 25,
-                            sections: [
-                              PieChartSectionData(value: protein, color: AppTheme.accentBlue, title: '', radius: 22),
-                              PieChartSectionData(value: fat, color: AppTheme.accentOrange, title: '', radius: 22),
-                              PieChartSectionData(value: carbs, color: Colors.purple, title: '', radius: 22),
-                            ],
+  // ── Calorie Ring Card ────────────────────────────────────────────────
+  Widget _buildCalorieRingCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        children: [
+          // Ring
+          AnimatedBuilder(
+            animation: _progressAnim,
+            builder: (context, child) {
+              return SizedBox(
+                width: 180,
+                height: 180,
+                child: CustomPaint(
+                  painter: _CalorieRingPainter(
+                    progress: (_progress * _progressAnim.value).clamp(0.0, 1.0),
+                    isOver: _progress > 1.0,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Calories',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.textTertiary,
                           ),
-                        )
-                      : Container(
-                          decoration: const BoxDecoration(shape: BoxShape.circle, color: AppTheme.softGrey),
-                          child: const Center(child: Text('No data', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary))),
                         ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildMacroRow('Protein', protein, 'g', AppTheme.accentBlue),
-                      const SizedBox(height: 10),
-                      _buildMacroRow('Fat', fat, 'g', AppTheme.accentOrange),
-                      const SizedBox(height: 10),
-                      _buildMacroRow('Carbs', carbs, 'g', Colors.purple),
-                    ],
+                        Text(
+                          '$_consumedCalories',
+                          style: GoogleFonts.poppins(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                            height: 1.1,
+                          ),
+                        ),
+                        Text(
+                          'of ${widget.targetCalories} kcal',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          // Stats row below ring
+          Row(
+            children: [
+              _buildRingStat(
+                icon: Icons.flag_outlined,
+                label: 'Target',
+                value: '${widget.targetCalories}',
+                color: AppTheme.primaryGreen,
+              ),
+              _buildDivider(),
+              _buildRingStat(
+                icon: Icons.local_fire_department_outlined,
+                label: 'Consumed',
+                value: '$_consumedCalories',
+                color: AppTheme.accentOrange,
+              ),
+              _buildDivider(),
+              _buildRingStat(
+                icon: _remainingCalories >= 0
+                    ? Icons.remove_circle_outline
+                    : Icons.warning_amber_rounded,
+                label: _remainingCalories >= 0 ? 'Remaining' : 'Over',
+                value: '${_remainingCalories.abs()}',
+                color: _remainingCalories >= 0
+                    ? AppTheme.accentBlue
+                    : AppTheme.accentRed,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMacroRow(String label, double value, String unit, Color color) {
-    return Row(
-      children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-        const Spacer(),
-        Text('${value.toStringAsFixed(1)}$unit', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-      ],
-    );
-  }
-
-  Widget _buildMealBreakdownCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.restaurant_menu, color: AppTheme.primaryGreen, size: 22),
-                SizedBox(width: 8),
-                Text('Meal Breakdown', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.darkGrey)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildMealRow('Breakfast', Icons.wb_sunny, _dailyLog?.breakfast.totalCalories ?? 0),
-            _buildMealRow('Lunch', Icons.wb_cloudy, _dailyLog?.lunch.totalCalories ?? 0),
-            _buildMealRow('Dinner', Icons.nights_stay, _dailyLog?.dinner.totalCalories ?? 0),
-            _buildMealRow('Snacks', Icons.cookie, _dailyLog?.snacks.totalCalories ?? 0),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMealRow(String name, IconData icon, int calories) {
-    final percentage = widget.targetCalories > 0 ? (calories / widget.targetCalories * 100).clamp(0.0, 100.0) : 0.0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+  Widget _buildRingStat({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppTheme.primaryGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: AppTheme.primaryGreen, size: 18),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.w500, color: AppTheme.darkGrey, fontSize: 14)),
-                    Text('$calories kcal', style: TextStyle(fontWeight: FontWeight.bold, color: calories > 0 ? AppTheme.primaryGreen : AppTheme.textSecondary, fontSize: 13)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: percentage / 100,
-                    backgroundColor: AppTheme.mediumGrey,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryGreen),
-                    minHeight: 5,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: AppTheme.textTertiary,
             ),
           ),
         ],
@@ -441,7 +355,329 @@ class _HomeDashboardState extends State<HomeDashboard> {
     );
   }
 
-  void _navigateToFoodLogging() async {
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 40,
+      color: AppTheme.mediumGrey,
+    );
+  }
+
+  // ── Macro Stats Row ──────────────────────────────────────────────────
+  Widget _buildMacroStatsRow() {
+    final profile = FirestoreService.cachedProfile;
+    MacroResult? targetMacros;
+    if (profile != null) {
+      targetMacros = MacroCalculator.calculate(
+        weightKg: profile.weight,
+        totalCalories: widget.targetCalories,
+        goal: widget.goal,
+      );
+    }
+
+    final consumedProtein = _dailyLog?.totalProtein ?? 0;
+    final consumedFat = _dailyLog?.totalFat ?? 0;
+    final consumedCarbs = _dailyLog?.totalCarbs ?? 0;
+    final targetProtein = targetMacros?.proteinGrams ?? 0;
+    final targetFat = targetMacros?.fatGrams ?? 0;
+    final targetCarbs = targetMacros?.carbGrams ?? 0;
+
+    return Row(
+      children: [
+        _buildMacroCard(
+          label: 'Protein',
+          consumed: consumedProtein,
+          target: targetProtein,
+          color: AppTheme.accentBlue,
+          icon: Icons.egg_outlined,
+        ),
+        const SizedBox(width: 10),
+        _buildMacroCard(
+          label: 'Carbs',
+          consumed: consumedCarbs,
+          target: targetCarbs,
+          color: AppTheme.accentPurple,
+          icon: Icons.grain_rounded,
+        ),
+        const SizedBox(width: 10),
+        _buildMacroCard(
+          label: 'Fat',
+          consumed: consumedFat,
+          target: targetFat,
+          color: AppTheme.accentOrange,
+          icon: Icons.water_drop_outlined,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMacroCard({
+    required String label,
+    required double consumed,
+    required double target,
+    required Color color,
+    required IconData icon,
+  }) {
+    final progress = target > 0 ? (consumed / target).clamp(0.0, 1.0) : 0.0;
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppTheme.softShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 16),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${consumed.toStringAsFixed(0)}g',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 5,
+                backgroundColor: color.withValues(alpha: 0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${target.toStringAsFixed(0)}g target',
+              style: GoogleFonts.poppins(
+                fontSize: 9,
+                color: AppTheme.textTertiary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Today's Meal Section ─────────────────────────────────────────────
+  Widget _buildTodaysMealSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              "Today's Meal",
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: _navigateToFoodLogging,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreenSurface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add, size: 16, color: AppTheme.primaryGreen),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Add',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildMealCard(
+          name: 'Breakfast',
+          icon: Icons.wb_sunny_rounded,
+          calories: _dailyLog?.breakfast.totalCalories ?? 0,
+          protein: _dailyLog?.breakfast.totalProtein ?? 0,
+          carbs: _dailyLog?.breakfast.totalCarbs ?? 0,
+          fat: _dailyLog?.breakfast.totalFat ?? 0,
+          color: AppTheme.breakfastColor,
+          bgColor: const Color(0xFFFFF8F0),
+        ),
+        const SizedBox(height: 10),
+        _buildMealCard(
+          name: 'Lunch',
+          icon: Icons.wb_sunny,
+          calories: _dailyLog?.lunch.totalCalories ?? 0,
+          protein: _dailyLog?.lunch.totalProtein ?? 0,
+          carbs: _dailyLog?.lunch.totalCarbs ?? 0,
+          fat: _dailyLog?.lunch.totalFat ?? 0,
+          color: AppTheme.lunchColor,
+          bgColor: const Color(0xFFF0F8FF),
+        ),
+        const SizedBox(height: 10),
+        _buildMealCard(
+          name: 'Dinner',
+          icon: Icons.nights_stay_rounded,
+          calories: _dailyLog?.dinner.totalCalories ?? 0,
+          protein: _dailyLog?.dinner.totalProtein ?? 0,
+          carbs: _dailyLog?.dinner.totalCarbs ?? 0,
+          fat: _dailyLog?.dinner.totalFat ?? 0,
+          color: AppTheme.dinnerColor,
+          bgColor: const Color(0xFFF5F0FF),
+        ),
+        const SizedBox(height: 10),
+        _buildMealCard(
+          name: 'Snacks',
+          icon: Icons.cookie_rounded,
+          calories: _dailyLog?.snacks.totalCalories ?? 0,
+          protein: _dailyLog?.snacks.totalProtein ?? 0,
+          carbs: _dailyLog?.snacks.totalCarbs ?? 0,
+          fat: _dailyLog?.snacks.totalFat ?? 0,
+          color: AppTheme.snackColor,
+          bgColor: const Color(0xFFFFF5F0),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMealCard({
+    required String name,
+    required IconData icon,
+    required int calories,
+    required double protein,
+    required double carbs,
+    required double fat,
+    required Color color,
+    required Color bgColor,
+  }) {
+    final hasData = calories > 0;
+
+    return GestureDetector(
+      onTap: () => _navigateToFoodLogging(mealType: name),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppTheme.softShadow,
+        ),
+        child: Row(
+          children: [
+            // Meal icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 14),
+            // Meal info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  hasData
+                      ? Text(
+                          'P: ${protein.toStringAsFixed(0)}g  C: ${carbs.toStringAsFixed(0)}g  F: ${fat.toStringAsFixed(0)}g',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: AppTheme.textTertiary,
+                          ),
+                        )
+                      : Text(
+                          'Tap to add food',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                ],
+              ),
+            ),
+            // Calorie count or add icon
+            hasData
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$calories',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                      ),
+                      Text(
+                        'kcal',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  )
+                : Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.add_rounded, color: color, size: 20),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Navigation ───────────────────────────────────────────────────────
+  void _navigateToFoodLogging({String mealType = 'Breakfast'}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -449,6 +685,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
           targetCalories: widget.targetCalories,
           bmr: widget.bmr,
           goal: widget.goal,
+          initialMealType: mealType,
         ),
       ),
     );
@@ -467,24 +704,128 @@ class _HomeDashboardState extends State<HomeDashboard> {
           ),
         ),
       );
-      // Refresh UI to show updated name
-      setState(() {});
+      setState(() => _currentNavIndex = 0);
     }
   }
 
-  IconData _getGoalIcon() {
-    switch (widget.goal) {
-      case FitnessGoal.weightLoss: return Icons.trending_down;
-      case FitnessGoal.maintenance: return Icons.balance;
-      case FitnessGoal.weightGain: return Icons.trending_up;
+  void _onNavTap(int index) {
+    switch (index) {
+      case 0:
+        _loadDailyLog();
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WeeklyAnalyticsScreen(
+              targetCalories: widget.targetCalories,
+              bmr: widget.bmr,
+              goal: widget.goal,
+              maintenanceCalories: widget.maintenanceCalories,
+            ),
+          ),
+        ).then((_) {
+          setState(() => _currentNavIndex = 0);
+          _loadDailyLog();
+        });
+        break;
+      case 2:
+        _showComingSoonDialog('Meal Plan');
+        break;
+      case 3:
+        _navigateToProfile();
+        break;
     }
   }
 
-  Color _getGoalColor() {
-    switch (widget.goal) {
-      case FitnessGoal.weightLoss: return AppTheme.accentOrange;
-      case FitnessGoal.maintenance: return AppTheme.primaryGreen;
-      case FitnessGoal.weightGain: return AppTheme.accentBlue;
+  void _showComingSoonDialog(String feature) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.construction_rounded, color: AppTheme.accentOrange),
+            const SizedBox(width: 8),
+            Text('Coming Soon',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          ],
+        ),
+        content: Text(
+          '$feature feature is under development. Stay tuned!',
+          style: GoogleFonts.poppins(color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK',
+                style: GoogleFonts.poppins(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Custom Calorie Ring Painter ──────────────────────────────────────────
+class _CalorieRingPainter extends CustomPainter {
+  final double progress;
+  final bool isOver;
+
+  _CalorieRingPainter({required this.progress, required this.isOver});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 14;
+    const strokeWidth = 14.0;
+    const startAngle = -math.pi / 2;
+
+    // Background track
+    final bgPaint = Paint()
+      ..color = AppTheme.softGrey
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Progress arc
+    final sweepAngle = 2 * math.pi * progress.clamp(0.0, 1.0);
+    if (sweepAngle > 0) {
+      final rect = Rect.fromCircle(center: center, radius: radius);
+      final gradient = SweepGradient(
+        startAngle: startAngle,
+        endAngle: startAngle + sweepAngle,
+        colors: isOver
+            ? [const Color(0xFFFF6B6B), const Color(0xFFEE5A5A)]
+            : [const Color(0xFF5DD39E), const Color(0xFF2DB573)],
+      );
+
+      final arcPaint = Paint()
+        ..shader = gradient.createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(rect, startAngle, sweepAngle, false, arcPaint);
+
+      // End cap dot
+      final endAngle = startAngle + sweepAngle;
+      final dotCenter = Offset(
+        center.dx + radius * math.cos(endAngle),
+        center.dy + radius * math.sin(endAngle),
+      );
+      final dotPaint = Paint()
+        ..color = isOver ? const Color(0xFFEE5A5A) : const Color(0xFF2DB573)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(dotCenter, 4, dotPaint);
     }
   }
+
+  @override
+  bool shouldRepaint(covariant _CalorieRingPainter old) =>
+      old.progress != progress || old.isOver != isOver;
 }
